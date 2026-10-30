@@ -1,0 +1,6 @@
+{
+  "name": "PEA FleetEquip - ระบบตรวจอุปกรณ์ประจำรถ การไฟฟ้าส่วนภูมิภาค",
+  "description": "ระบบตรวจเช็คอุปกรณ์ประจำรถประจำวัน การไฟฟ้าส่วนภูมิภาค (PEA) จัดการสังกัดสาขา ดูประวัติย้อนหลัง และส่งแจ้งเตือนรถที่ยังไม่ได้ตรวจเข้า LINE",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
