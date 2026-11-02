@@ -106,20 +106,9 @@ export const AdminLoginModal: React.FC<AdminLoginModalProps> = ({
               {error && (
                 <div className="flex items-center gap-1.5 text-rose-600 text-xs mt-1.5">
                   <AlertCircle className="w-3.5 h-3.5" />
-                  <span>รหัส PIN ไม่ถูกต้อง (รหัสเริ่มต้น: 1234)</span>
+                  <span>รหัส PIN ไม่ถูกต้อง</span>
                 </div>
               )}
-            </div>
-
-            <div className="p-2.5 bg-blue-50/70 border border-blue-200 rounded-xl text-xs text-blue-800 flex items-center justify-between">
-              <span>รหัส PIN เริ่มต้นระบบ: <strong className="font-mono">1234</strong></span>
-              <button
-                type="button"
-                onClick={() => setPin('1234')}
-                className="text-[11px] underline font-medium hover:text-blue-900 cursor-pointer"
-              >
-                กรอกอัตโนมัติ
-              </button>
             </div>
 
             <div className="flex flex-col gap-2 pt-2">

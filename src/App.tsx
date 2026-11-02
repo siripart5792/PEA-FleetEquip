@@ -825,14 +825,6 @@ export default function App() {
                 <span>Google Sheets Database ↗</span>
               </a>
             )}
-            <button
-              onClick={handleResetData}
-              className="text-slate-500 hover:text-slate-800 transition-colors flex items-center gap-1 cursor-pointer"
-              title="ล้างข้อมูลและคืนค่าตัวอย่างทั้งหมด"
-            >
-              <RefreshCw className="w-3.5 h-3.5" />
-              <span>รีเซ็ตข้อมูลเริ่มต้น</span>
-            </button>
             <span>v2.2.0 (Google Sheets Real-time)</span>
           </div>
         </div>
