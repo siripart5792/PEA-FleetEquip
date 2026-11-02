@@ -112,6 +112,14 @@ function doPost(e) {
       });
     }
 
+    if (action === "deleteInspection") {
+      deleteInspectionRecord(ss, payload.id);
+      return createJsonResponse({
+        status: "success",
+        message: "ลบประวัติการตรวจเช็คเรียบร้อย"
+      });
+    }
+
     if (action === "saveVehicle") {
       saveVehicleRecord(ss, payload.vehicle);
       return createJsonResponse({
@@ -421,6 +429,18 @@ function saveInspectionRecord(ss, record, updatedMileage) {
           break;
         }
       }
+    }
+  }
+}
+
+function deleteInspectionRecord(ss, id) {
+  var sheet = ss.getSheetByName(SHEET_NAMES.INSPECTIONS);
+  if (!sheet) return;
+  var data = sheet.getDataRange().getValues();
+  for (var i = 1; i < data.length; i++) {
+    if (data[i][0] === id) {
+      sheet.deleteRow(i + 1);
+      break;
     }
   }
 }

@@ -521,6 +521,36 @@ export default function App() {
     );
   };
 
+  // Delete Inspection Record (Admin only)
+  const handleDeleteInspection = (id: string) => {
+    const recToDelete = records.find((r) => r.id === id);
+    if (!recToDelete) return;
+
+    if (
+      !window.confirm(
+        `ยืนยันการลบประวัติการตรวจเช็ค\nทะเบียน: ${recToDelete.plateNumber} (${recToDelete.province})\nวันที่: ${recToDelete.inspectionDate} เวลา ${recToDelete.inspectionTime} น.\n\nเมื่อลบแล้วจะไม่สามารถกู้คืนได้ ยืนยันหรือไม่?`
+      )
+    ) {
+      return;
+    }
+
+    const updatedRecords = records.filter((r) => r.id !== id);
+    setRecords(updatedRecords);
+    saveInspections(updatedRecords);
+
+    if (viewingRecord && viewingRecord.id === id) {
+      setViewingRecord(null);
+    }
+
+    addToast('info', 'ลบประวัติการตรวจเช็คสำเร็จ', `ทะเบียน ${recToDelete.plateNumber} (${recToDelete.inspectionDate})`);
+
+    // Sync to Google Sheets & Web App immediately
+    pushCurrentStateToSheets(
+      { r: updatedRecords },
+      { action: 'deleteInspection', payload: { id } }
+    );
+  };
+
   // PEA Branch Management Handlers
   const handleAddBranch = (branchData: Omit<PeaBranch, 'id'>) => {
     const newBranch: PeaBranch = {
@@ -756,7 +786,9 @@ export default function App() {
             records={records}
             vehicles={vehicles}
             branches={branches}
+            role={role}
             onSelectRecord={(rec) => setViewingRecord(rec)}
+            onDeleteRecord={handleDeleteInspection}
           />
         )}
 
@@ -844,7 +876,9 @@ export default function App() {
       {viewingRecord && (
         <InspectionDetailModal
           record={viewingRecord}
+          role={role}
           onClose={() => setViewingRecord(null)}
+          onDelete={handleDeleteInspection}
         />
       )}
 

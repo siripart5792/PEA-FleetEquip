@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
-import { Search, Calendar, FileText, Download, CheckCircle, AlertTriangle, Eye, Car, Building2 } from 'lucide-react';
-import { InspectionRecord, Vehicle, PeaBranch } from '../types/fleet';
+import { Search, Calendar, FileText, Download, CheckCircle, AlertTriangle, Eye, Car, Building2, Trash2 } from 'lucide-react';
+import { InspectionRecord, Vehicle, PeaBranch, UserRole } from '../types/fleet';
 import { formatThaiDate } from '../utils/lineMessage';
 import { getTodayDateString, getOffsetDateString } from '../data/initialData';
 import { MultiBranchSelect } from './MultiBranchSelect';
@@ -9,14 +9,18 @@ interface HistoryViewProps {
   records: InspectionRecord[];
   vehicles: Vehicle[];
   branches: PeaBranch[];
+  role?: UserRole;
   onSelectRecord: (record: InspectionRecord) => void;
+  onDeleteRecord?: (id: string) => void;
 }
 
 export const HistoryView: React.FC<HistoryViewProps> = ({
   records,
   vehicles,
   branches,
+  role = 'user',
   onSelectRecord,
+  onDeleteRecord,
 }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [dateRangeFilter, setDateRangeFilter] = useState<'all' | 'today' | 'yesterday' | 'week' | 'month' | 'custom'>('all');
@@ -308,7 +312,7 @@ export const HistoryView: React.FC<HistoryViewProps> = ({
                 <th className="py-3 px-4 text-right">เลขไมล์</th>
                 <th className="py-3 px-4 text-center">อุปกรณ์ที่ตรวจ</th>
                 <th className="py-3 px-4 text-center">ผลการตรวจ</th>
-                <th className="py-3 px-4 text-right">รายงาน</th>
+                <th className="py-3 px-4 text-right">{role === 'admin' ? 'จัดการ' : 'รายงาน'}</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100 text-xs sm:text-sm">
@@ -394,16 +398,32 @@ export const HistoryView: React.FC<HistoryViewProps> = ({
                       </td>
 
                       <td className="py-3 px-4 text-right">
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            onSelectRecord(rec);
-                          }}
-                          className="px-2.5 py-1 text-xs font-medium text-purple-700 hover:text-purple-900 hover:bg-purple-50 rounded-lg transition-colors inline-flex items-center gap-1 cursor-pointer"
-                        >
-                          <Eye className="w-3.5 h-3.5" />
-                          <span>ดูรายงาน</span>
-                        </button>
+                        <div className="flex items-center justify-end gap-1.5">
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              onSelectRecord(rec);
+                            }}
+                            className="px-2.5 py-1 text-xs font-medium text-purple-700 hover:text-purple-900 hover:bg-purple-50 rounded-lg transition-colors inline-flex items-center gap-1 cursor-pointer"
+                            title="ดูรายละเอียดการตรวจเช็ค"
+                          >
+                            <Eye className="w-3.5 h-3.5" />
+                            <span>ดูรายงาน</span>
+                          </button>
+
+                          {role === 'admin' && onDeleteRecord && (
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                onDeleteRecord(rec.id);
+                              }}
+                              className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors cursor-pointer"
+                              title="ลบรายการประวัตินี้ (เฉพาะผู้ดูแลระบบ)"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </button>
+                          )}
+                        </div>
                       </td>
                     </tr>
                   );

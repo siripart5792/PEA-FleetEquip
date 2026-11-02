@@ -752,6 +752,10 @@ export async function saveInspectionToWebApp(
   await postToWebAppAction(webAppUrl, 'saveInspection', { record, updatedMileage });
 }
 
+export async function deleteInspectionFromWebApp(webAppUrl: string, id: string): Promise<void> {
+  await postToWebAppAction(webAppUrl, 'deleteInspection', { id });
+}
+
 export async function setAdminPinToWebApp(webAppUrl: string, pin: string): Promise<void> {
   await postToWebAppAction(webAppUrl, 'setAdminPin', { pin });
 }
