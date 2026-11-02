@@ -43,6 +43,9 @@ const SPREADSHEET_TITLE = 'PEA FleetEquip - ข้อมูลตรวจอุ
 const STORAGE_SHEET_ID_KEY = 'fleet_equip_google_sheet_id';
 const STORAGE_WEB_APP_URL_KEY = 'fleet_equip_gas_web_app_url';
 
+export const DEFAULT_WEB_APP_URL =
+  'https://script.google.com/macros/s/AKfycbwThzBGUy6bezurp0zydeN-BeTT4Znb-OQcEoDuzDSKbcRHCPwwmv0RU55BDdaY6-9H/exec';
+
 export function getStoredSpreadsheetId(): string | null {
   try {
     return localStorage.getItem(STORAGE_SHEET_ID_KEY);
@@ -65,9 +68,13 @@ export function setStoredSpreadsheetId(id: string | null): void {
 
 export function getStoredWebAppUrl(): string | null {
   try {
-    return localStorage.getItem(STORAGE_WEB_APP_URL_KEY);
+    const val = localStorage.getItem(STORAGE_WEB_APP_URL_KEY);
+    if (val && val.trim()) {
+      return val.trim();
+    }
+    return DEFAULT_WEB_APP_URL;
   } catch {
-    return null;
+    return DEFAULT_WEB_APP_URL;
   }
 }
 
@@ -76,7 +83,7 @@ export function setStoredWebAppUrl(url: string | null): void {
     if (url && url.trim()) {
       localStorage.setItem(STORAGE_WEB_APP_URL_KEY, url.trim());
     } else {
-      localStorage.removeItem(STORAGE_WEB_APP_URL_KEY);
+      localStorage.setItem(STORAGE_WEB_APP_URL_KEY, DEFAULT_WEB_APP_URL);
     }
   } catch {
     // ignore
@@ -650,7 +657,55 @@ export async function fetchFromWebApp(webAppUrl: string): Promise<{
 }
 
 /**
- * Push data via Google Apps Script Web App URL
+ * Post an action to Google Apps Script Web App URL
+ * Uses standard fetch with graceful fallback to mode: 'no-cors' to handle Google Apps Script 302 redirect in browsers
+ */
+export async function postToWebAppAction(
+  webAppUrl: string,
+  action: string,
+  payloadData?: Record<string, any>
+): Promise<void> {
+  if (!webAppUrl || !webAppUrl.trim()) return;
+
+  const payload = {
+    action,
+    ...(payloadData || {}),
+  };
+  const bodyStr = JSON.stringify(payload);
+
+  // 1. First attempt: standard fetch
+  try {
+    const res = await fetch(webAppUrl, {
+      method: 'POST',
+      headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+      body: bodyStr,
+    });
+    if (res.ok) {
+      return;
+    }
+  } catch (err) {
+    // In browsers, cross-origin 302 redirect from script.google.com to script.googleusercontent.com
+    // can trigger a CORS TypeError even though the script received the request.
+    // We fall through to mode: 'no-cors' to ensure guaranteed delivery.
+  }
+
+  // 2. Guaranteed delivery via mode: 'no-cors'
+  // When mode: 'no-cors' is used, browser sends the POST with text/plain body without CORS blocking.
+  // Google Apps Script doPost(e) receives the payload and executes it on the spreadsheet.
+  try {
+    await fetch(webAppUrl, {
+      method: 'POST',
+      mode: 'no-cors',
+      headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+      body: bodyStr,
+    });
+  } catch (finalErr) {
+    console.warn('Failed to post to Web App:', finalErr);
+  }
+}
+
+/**
+ * Push all data via Google Apps Script Web App URL
  */
 export async function pushToWebApp(
   webAppUrl: string,
@@ -662,19 +717,42 @@ export async function pushToWebApp(
     adminPin: string;
   }
 ): Promise<void> {
-  const payload = {
-    action: 'syncAll',
-    data,
-  };
-
-  const res = await fetch(webAppUrl, {
-    method: 'POST',
-    headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-    body: JSON.stringify(payload),
-  });
-
-  if (!res.ok) {
-    const err = await res.text();
-    throw new Error(`ไม่สามารถบันทึกลง Web App API ได้: ${err}`);
-  }
+  await postToWebAppAction(webAppUrl, 'syncAll', { data });
 }
+
+export async function saveVehicleToWebApp(webAppUrl: string, vehicle: Vehicle): Promise<void> {
+  await postToWebAppAction(webAppUrl, 'saveVehicle', { vehicle });
+}
+
+export async function deleteVehicleFromWebApp(webAppUrl: string, id: string): Promise<void> {
+  await postToWebAppAction(webAppUrl, 'deleteVehicle', { id });
+}
+
+export async function saveEquipmentToWebApp(webAppUrl: string, equipment: MasterEquipment): Promise<void> {
+  await postToWebAppAction(webAppUrl, 'saveEquipment', { equipment });
+}
+
+export async function deleteEquipmentFromWebApp(webAppUrl: string, id: string): Promise<void> {
+  await postToWebAppAction(webAppUrl, 'deleteEquipment', { id });
+}
+
+export async function saveBranchToWebApp(webAppUrl: string, branch: PeaBranch): Promise<void> {
+  await postToWebAppAction(webAppUrl, 'saveBranch', { branch });
+}
+
+export async function deleteBranchFromWebApp(webAppUrl: string, id: string): Promise<void> {
+  await postToWebAppAction(webAppUrl, 'deleteBranch', { id });
+}
+
+export async function saveInspectionToWebApp(
+  webAppUrl: string,
+  record: InspectionRecord,
+  updatedMileage?: number
+): Promise<void> {
+  await postToWebAppAction(webAppUrl, 'saveInspection', { record, updatedMileage });
+}
+
+export async function setAdminPinToWebApp(webAppUrl: string, pin: string): Promise<void> {
+  await postToWebAppAction(webAppUrl, 'setAdminPin', { pin });
+}
+

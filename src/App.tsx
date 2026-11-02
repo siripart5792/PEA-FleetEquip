@@ -54,6 +54,7 @@ import {
   setStoredWebAppUrl,
   fetchFromWebApp,
   pushToWebApp,
+  postToWebAppAction,
   extractSheetId,
 } from './services/googleSheets';
 
@@ -114,16 +115,18 @@ export default function App() {
   // Status counts
   const { pendingCount } = getTodayStatusCounts(vehicles, records);
 
-  // Google Sheets: Push data to sheets helper (debounced/direct)
+  // Google Sheets: Push data to sheets helper (handles Web App API and/or OAuth)
   const pushCurrentStateToSheets = useCallback(
     async (
-      token: string | null,
-      sheetId: string | null,
       customData?: {
         b?: PeaBranch[];
         e?: MasterEquipment[];
         v?: Vehicle[];
         r?: InspectionRecord[];
+      },
+      actionInfo?: {
+        action: string;
+        payload?: any;
       }
     ) => {
       const payload = {
@@ -134,21 +137,41 @@ export default function App() {
         adminPin: getAdminPin(),
       };
 
-      // 1. If Web App URL is configured, push via Google Apps Script Web App
+      // 1. If Web App URL is configured, push via Google Apps Script Web App immediately
       if (webAppUrl) {
-        pushToWebApp(webAppUrl, payload).catch((err) => console.warn('Web App push error:', err));
+        setIsSyncing(true);
+        try {
+          if (actionInfo) {
+            await postToWebAppAction(webAppUrl, actionInfo.action, actionInfo.payload);
+          }
+          await pushToWebApp(webAppUrl, payload);
+          const timeStr = new Date().toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' });
+          setLastSyncTime(timeStr);
+          setSyncError(null);
+        } catch (err: any) {
+          console.warn('Web App push error:', err);
+        } finally {
+          setIsSyncing(false);
+        }
       }
 
-      // 2. If OAuth token & sheetId are available, push via Google Sheets API
-      if (token && sheetId) {
+      // 2. If OAuth token & sheetId are available, also push via Google Sheets API
+      const token = googleToken || getCurrentToken();
+      if (token && spreadsheetId) {
+        setIsSyncing(true);
         try {
-          await pushAllToGoogleSheets(token, sheetId, payload);
+          await pushAllToGoogleSheets(token, spreadsheetId, payload);
+          const timeStr = new Date().toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' });
+          setLastSyncTime(timeStr);
+          setSyncError(null);
         } catch (err: any) {
           console.warn('Failed to push to Google Sheets:', err);
+        } finally {
+          setIsSyncing(false);
         }
       }
     },
-    [branches, masterEquipment, vehicles, records, webAppUrl]
+    [branches, masterEquipment, vehicles, records, webAppUrl, googleToken, spreadsheetId]
   );
 
   /**
@@ -281,8 +304,13 @@ export default function App() {
     [webAppUrl, googleToken, spreadsheetId, branches, masterEquipment, vehicles, records, addToast]
   );
 
-  // Initialize Auth on App Mount
+  // Initialize Auth on App Mount & Auto-sync on startup
   useEffect(() => {
+    // Initial sync from Web App URL if available
+    if (webAppUrl) {
+      syncFromGoogleSheets(false);
+    }
+
     const unsubscribe = initGoogleAuth((user, token) => {
       setGoogleUser(user);
       setGoogleToken(token);
@@ -293,7 +321,7 @@ export default function App() {
     });
 
     return () => unsubscribe();
-  }, [syncFromGoogleSheets]);
+  }, [syncFromGoogleSheets, webAppUrl]);
 
   // Google Login Handler
   const handleGoogleLogin = async () => {
@@ -370,22 +398,28 @@ export default function App() {
     setTimeout(() => syncFromGoogleSheets(true), 100);
   };
 
-  // Force Push to Sheets
+  // Force Push to Sheets / Web App
   const handleForcePushToSheets = async () => {
     const token = googleToken || getCurrentToken();
-    if (!token || !spreadsheetId) {
-      addToast('error', 'ยังไม่ได้เชื่อมต่อ Google Sheets');
+    if (!token && !webAppUrl) {
+      addToast('error', 'ยังไม่ได้เชื่อมต่อ Google Sheets หรือ Web App');
       return;
     }
     setIsSyncing(true);
     try {
-      await pushAllToGoogleSheets(token, spreadsheetId, {
+      const payload = {
         branches,
         equipment: masterEquipment,
         vehicles,
         records,
         adminPin: getAdminPin(),
-      });
+      };
+      if (webAppUrl) {
+        await pushToWebApp(webAppUrl, payload);
+      }
+      if (token && spreadsheetId) {
+        await pushAllToGoogleSheets(token, spreadsheetId, payload);
+      }
       const timeStr = new Date().toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' });
       setLastSyncTime(timeStr);
       addToast('success', 'ส่งข้อมูลทั้งหมดขึ้น Google Sheets สำเร็จ!', 'ข้อมูล 5 แผ่นงานได้รับการอัปเดตเรียบร้อย');
@@ -400,8 +434,8 @@ export default function App() {
   const handleSelectTab = (tab: 'daily' | 'history' | 'line' | 'vehicles' | 'equipment' | 'branches') => {
     if (tab === 'line') {
       setLineModalOpen(true);
-      // Trigger background sync from Google Sheets
-      if (googleToken || getCurrentToken()) {
+      // Trigger background sync from Google Sheets / Web App
+      if (webAppUrl || googleToken || getCurrentToken()) {
         syncFromGoogleSheets(false);
       }
       return;
@@ -409,8 +443,8 @@ export default function App() {
 
     setCurrentTab(tab);
 
-    // Trigger sync from Google Sheets on tab/menu change
-    if (googleToken || getCurrentToken()) {
+    // Trigger sync from Google Sheets / Web App on tab/menu change
+    if (webAppUrl || googleToken || getCurrentToken()) {
       syncFromGoogleSheets(false);
     }
   };
@@ -480,14 +514,11 @@ export default function App() {
         : 'พบรายการอุปกรณ์แจ้งซ่อมหรือสูญหาย'
     );
 
-    // Sync to Google Sheets if connected
-    const token = googleToken || getCurrentToken();
-    if (token && spreadsheetId) {
-      pushCurrentStateToSheets(token, spreadsheetId, {
-        r: updatedRecords,
-        v: updatedVehicles,
-      });
-    }
+    // Sync to Google Sheets & Web App immediately
+    pushCurrentStateToSheets(
+      { r: updatedRecords, v: updatedVehicles },
+      { action: 'saveInspection', payload: { record: newRecord, updatedMileage } }
+    );
   };
 
   // PEA Branch Management Handlers
@@ -501,10 +532,10 @@ export default function App() {
     savePeaBranches(updated);
     addToast('success', 'เพิ่มสาขาการไฟฟ้าสำเร็จ', newBranch.name);
 
-    const token = googleToken || getCurrentToken();
-    if (token && spreadsheetId) {
-      pushCurrentStateToSheets(token, spreadsheetId, { b: updated });
-    }
+    pushCurrentStateToSheets(
+      { b: updated },
+      { action: 'saveBranch', payload: { branch: newBranch } }
+    );
   };
 
   const handleUpdateBranch = (id: string, updatedData: Partial<PeaBranch>) => {
@@ -523,13 +554,11 @@ export default function App() {
 
     addToast('success', 'บันทึกการแก้ไขสาขาการไฟฟ้าเรียบร้อยแล้ว');
 
-    const token = googleToken || getCurrentToken();
-    if (token && spreadsheetId) {
-      pushCurrentStateToSheets(token, spreadsheetId, {
-        b: updatedBranches,
-        v: updatedVehicles,
-      });
-    }
+    const updatedBranch = updatedBranches.find((b) => b.id === id);
+    pushCurrentStateToSheets(
+      { b: updatedBranches, v: updatedVehicles },
+      updatedBranch ? { action: 'saveBranch', payload: { branch: updatedBranch } } : undefined
+    );
   };
 
   const handleDeleteBranch = (id: string) => {
@@ -552,13 +581,10 @@ export default function App() {
 
     addToast('info', 'ลบสาขาการไฟฟ้าเรียบร้อยแล้ว', targetBranch?.name);
 
-    const token = googleToken || getCurrentToken();
-    if (token && spreadsheetId) {
-      pushCurrentStateToSheets(token, spreadsheetId, {
-        b: updatedBranches,
-        v: updatedVehicles,
-      });
-    }
+    pushCurrentStateToSheets(
+      { b: updatedBranches, v: updatedVehicles },
+      { action: 'deleteBranch', payload: { id } }
+    );
   };
 
   // Vehicle Management (without custodian / phone)
@@ -572,10 +598,10 @@ export default function App() {
     saveVehicles(updated);
     addToast('success', 'เพิ่มรถยนต์ใหม่สำเร็จ', `ทะเบียน ${newVehicle.plateNumber} (${newVehicle.peaBranchName})`);
 
-    const token = googleToken || getCurrentToken();
-    if (token && spreadsheetId) {
-      pushCurrentStateToSheets(token, spreadsheetId, { v: updated });
-    }
+    pushCurrentStateToSheets(
+      { v: updated },
+      { action: 'saveVehicle', payload: { vehicle: newVehicle } }
+    );
   };
 
   const handleUpdateVehicle = (id: string, updatedData: Partial<Vehicle>) => {
@@ -584,10 +610,11 @@ export default function App() {
     saveVehicles(updated);
     addToast('success', 'บันทึกการแก้ไขข้อมูลรถสำเร็จ');
 
-    const token = googleToken || getCurrentToken();
-    if (token && spreadsheetId) {
-      pushCurrentStateToSheets(token, spreadsheetId, { v: updated });
-    }
+    const updatedVehicle = updated.find((v) => v.id === id);
+    pushCurrentStateToSheets(
+      { v: updated },
+      updatedVehicle ? { action: 'saveVehicle', payload: { vehicle: updatedVehicle } } : undefined
+    );
   };
 
   const handleDeleteVehicle = (id: string) => {
@@ -597,10 +624,10 @@ export default function App() {
     saveVehicles(updated);
     addToast('info', 'ลบข้อมูลรถออกจากระบบแล้ว', target ? `ทะเบียน ${target.plateNumber}` : undefined);
 
-    const token = googleToken || getCurrentToken();
-    if (token && spreadsheetId) {
-      pushCurrentStateToSheets(token, spreadsheetId, { v: updated });
-    }
+    pushCurrentStateToSheets(
+      { v: updated },
+      { action: 'deleteVehicle', payload: { id } }
+    );
   };
 
   // Master Equipment Management
@@ -614,10 +641,10 @@ export default function App() {
     saveMasterEquipment(updated);
     addToast('success', 'เพิ่มอุปกรณ์ใหม่สำเร็จ', newEquip.name);
 
-    const token = googleToken || getCurrentToken();
-    if (token && spreadsheetId) {
-      pushCurrentStateToSheets(token, spreadsheetId, { e: updated });
-    }
+    pushCurrentStateToSheets(
+      { e: updated },
+      { action: 'saveEquipment', payload: { equipment: newEquip } }
+    );
   };
 
   const handleUpdateEquipment = (id: string, updatedData: Partial<MasterEquipment>) => {
@@ -626,10 +653,11 @@ export default function App() {
     saveMasterEquipment(updated);
     addToast('success', 'บันทึกการแก้ไขอุปกรณ์เรียบร้อยแล้ว');
 
-    const token = googleToken || getCurrentToken();
-    if (token && spreadsheetId) {
-      pushCurrentStateToSheets(token, spreadsheetId, { e: updated });
-    }
+    const updatedEquip = updated.find((eq) => eq.id === id);
+    pushCurrentStateToSheets(
+      { e: updated },
+      updatedEquip ? { action: 'saveEquipment', payload: { equipment: updatedEquip } } : undefined
+    );
   };
 
   const handleDeleteEquipment = (id: string) => {
@@ -646,13 +674,10 @@ export default function App() {
 
     addToast('info', 'ลบรายการอุปกรณ์เรียบร้อยแล้ว');
 
-    const token = googleToken || getCurrentToken();
-    if (token && spreadsheetId) {
-      pushCurrentStateToSheets(token, spreadsheetId, {
-        e: updatedMaster,
-        v: updatedVehicles,
-      });
-    }
+    pushCurrentStateToSheets(
+      { e: updatedMaster, v: updatedVehicles },
+      { action: 'deleteEquipment', payload: { id } }
+    );
   };
 
   // Reset to factory defaults
@@ -669,10 +694,7 @@ export default function App() {
       setRecords(r);
       addToast('info', 'รีเซ็ตข้อมูลเป็นค่าเริ่มต้นเรียบร้อยแล้ว');
 
-      const token = googleToken || getCurrentToken();
-      if (token && spreadsheetId) {
-        pushCurrentStateToSheets(token, spreadsheetId, { b, v, e, r });
-      }
+      pushCurrentStateToSheets({ b, v, e, r });
     }
   };
 
@@ -680,6 +702,7 @@ export default function App() {
     <div className="min-h-screen bg-slate-50 flex flex-col font-sans text-slate-900 selection:bg-purple-100 selection:text-purple-900">
       {/* Top Google Sheets Sync Bar */}
       <GoogleSheetsBar
+        role={role}
         user={googleUser}
         spreadsheetId={spreadsheetId}
         spreadsheetUrl={spreadsheetUrl}

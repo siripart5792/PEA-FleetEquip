@@ -15,6 +15,7 @@ import {
   ChevronUp,
 } from 'lucide-react';
 import { GOOGLE_APPS_SCRIPT_CODE } from '../services/googleAppsScriptCode';
+import { DEFAULT_WEB_APP_URL } from '../services/googleSheets';
 
 interface GoogleAppsScriptModalProps {
   isOpen: boolean;
@@ -32,9 +33,13 @@ export const GoogleAppsScriptModal: React.FC<GoogleAppsScriptModalProps> = ({
   if (!isOpen) return null;
 
   const [copied, setCopied] = useState(false);
-  const [urlInput, setUrlInput] = useState(webAppUrl || '');
+  const [urlInput, setUrlInput] = useState(webAppUrl || DEFAULT_WEB_APP_URL);
   const [showFullCode, setShowFullCode] = useState(false);
   const [saveSuccess, setSaveSuccess] = useState(false);
+
+  React.useEffect(() => {
+    setUrlInput(webAppUrl || DEFAULT_WEB_APP_URL);
+  }, [webAppUrl]);
 
   const handleCopyCode = async () => {
     try {

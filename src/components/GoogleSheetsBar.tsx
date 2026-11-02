@@ -14,6 +14,7 @@ import {
 } from 'lucide-react';
 import { User } from 'firebase/auth';
 import { Code2 } from 'lucide-react';
+import { UserRole } from '../types/fleet';
 
 interface GoogleSheetsBarProps {
   user: User | null;
@@ -23,6 +24,7 @@ interface GoogleSheetsBarProps {
   isSyncing: boolean;
   lastSyncTime: string | null;
   syncError: string | null;
+  role?: UserRole;
   onLoginGoogle: () => void;
   onLogoutGoogle: () => void;
   onManualSync: () => void;
@@ -39,6 +41,7 @@ export const GoogleSheetsBar: React.FC<GoogleSheetsBarProps> = ({
   isSyncing,
   lastSyncTime,
   syncError,
+  role = 'user',
   onLoginGoogle,
   onLogoutGoogle,
   onManualSync,
@@ -75,9 +78,29 @@ export const GoogleSheetsBar: React.FC<GoogleSheetsBarProps> = ({
 
             {user ? (
               <div className="flex items-center gap-2 flex-wrap">
-                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 font-medium text-[11px] border border-emerald-500/30">
+                <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 font-medium text-[11px] border border-emerald-500/30">
                   <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-                  <span>เชื่อมต่อแล้ว ({user.displayName || user.email})</span>
+                  <span>Google Sheets ({user.displayName || user.email})</span>
+                </span>
+
+                {lastSyncTime && (
+                  <span className="text-slate-400 text-[11px] font-mono">
+                    ซิงค์ล่าสุด {lastSyncTime}
+                  </span>
+                )}
+
+                {syncError && (
+                  <span className="text-rose-300 text-[11px] inline-flex items-center gap-1">
+                    <AlertCircle className="w-3 h-3 text-rose-400" />
+                    <span>{syncError}</span>
+                  </span>
+                )}
+              </div>
+            ) : webAppUrl ? (
+              <div className="flex items-center gap-2 flex-wrap">
+                <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 font-medium text-[11px] border border-emerald-500/30">
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                  <span>เชื่อมต่อ Web App API แล้ว</span>
                 </span>
 
                 {lastSyncTime && (
@@ -98,52 +121,48 @@ export const GoogleSheetsBar: React.FC<GoogleSheetsBarProps> = ({
                 เชื่อมโยงกับ Google Sheets เพื่อบันทึกข้อมูลรถ อุปกรณ์ สาขา กฟภ. และประวัติตรวจแบบเรียลไทม์
               </span>
             )}
-            {/* Web App URL Badge if configured */}
-            {webAppUrl && (
-              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-purple-500/20 text-purple-300 font-medium text-[11px] border border-purple-500/30">
-                <span className="w-1.5 h-1.5 rounded-full bg-purple-400" />
-                <span>Web App API เชื่อมต่อแล้ว</span>
-              </span>
-            )}
           </div>
 
-          {/* Right: Actions */}
-          <div className="flex items-center gap-2 flex-wrap self-end sm:self-auto">
-            {/* Apps Script Code Button */}
-            <button
-              onClick={onOpenAppsScriptModal}
-              className="px-2.5 py-1 bg-purple-900/80 hover:bg-purple-800 text-purple-200 hover:text-white rounded-lg transition-all flex items-center gap-1.5 border border-purple-700/60 cursor-pointer font-medium text-[11px]"
-              title="ดูโค้ด API Google Apps Script สำหรับนำไปวางใน Google Sheets"
-            >
-              <Code2 className="w-3.5 h-3.5 text-purple-400" />
-              <span>โค้ด API Google Sheets</span>
-            </button>
+          {/* Right: Actions (Visible only for Administrator) */}
+          {role === 'admin' && (
+            <div className="flex items-center gap-2 flex-wrap self-end sm:self-auto">
+              {/* Apps Script Code / Web App Config Button */}
+              <button
+                onClick={onOpenAppsScriptModal}
+                className="px-2.5 py-1 bg-purple-900/80 hover:bg-purple-800 text-purple-200 hover:text-white rounded-lg transition-all flex items-center gap-1.5 border border-purple-700/60 cursor-pointer font-medium text-[11px]"
+                title="ดูโค้ด API Google Apps Script และตั้งค่า Web App URL"
+              >
+                <Code2 className="w-3.5 h-3.5 text-purple-400" />
+                <span>โค้ด API &amp; Web App</span>
+              </button>
 
-            {user ? (
-              <>
+              {/* Sync Now button when either user or webAppUrl is available */}
+              {(user || webAppUrl) && (
                 <button
                   onClick={onManualSync}
                   disabled={isSyncing}
-                  className="px-2.5 py-1 bg-emerald-600/80 hover:bg-emerald-600 active:scale-95 text-white rounded-lg transition-all flex items-center gap-1.5 font-medium cursor-pointer disabled:opacity-50"
+                  className="px-2.5 py-1 bg-emerald-600/90 hover:bg-emerald-600 active:scale-95 text-white rounded-lg transition-all flex items-center gap-1.5 font-medium cursor-pointer disabled:opacity-50 text-[11px] shadow-xs"
                   title="ดึงข้อมูลล่าสุดจาก Google Sheets ตอนนี้"
                 >
                   <RefreshCw className={`w-3.5 h-3.5 ${isSyncing ? 'animate-spin' : ''}`} />
                   <span>{isSyncing ? 'กำลังซิงค์...' : 'ซิงค์ทันที'}</span>
                 </button>
+              )}
 
-                {spreadsheetUrl && (
-                  <a
-                    href={spreadsheetUrl}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="px-2.5 py-1 bg-slate-800 hover:bg-slate-700 active:scale-95 text-emerald-300 rounded-lg transition-all flex items-center gap-1 border border-slate-700 cursor-pointer text-[11px]"
-                    title="เปิดสเปรดชีตนี้ใน Google Sheets บนแท็บใหม่"
-                  >
-                    <span>เปิดสเปรดชีต</span>
-                    <ExternalLink className="w-3 h-3" />
-                  </a>
-                )}
+              {spreadsheetUrl && (
+                <a
+                  href={spreadsheetUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="px-2.5 py-1 bg-slate-800 hover:bg-slate-700 active:scale-95 text-emerald-300 rounded-lg transition-all flex items-center gap-1 border border-slate-700 cursor-pointer text-[11px]"
+                  title="เปิดสเปรดชีตนี้ใน Google Sheets บนแท็บใหม่"
+                >
+                  <span>เปิดสเปรดชีต</span>
+                  <ExternalLink className="w-3 h-3" />
+                </a>
+              )}
 
+              {(user || webAppUrl) && (
                 <button
                   onClick={() => setModalOpen(true)}
                   className="p-1 text-slate-300 hover:text-white hover:bg-slate-800 rounded-lg transition-colors cursor-pointer"
@@ -151,35 +170,46 @@ export const GoogleSheetsBar: React.FC<GoogleSheetsBarProps> = ({
                 >
                   <Settings className="w-3.5 h-3.5" />
                 </button>
-              </>
-            ) : (
-              <button
-                onClick={onLoginGoogle}
-                className="px-3 py-1 bg-white hover:bg-slate-100 text-slate-900 rounded-lg font-semibold transition-all flex items-center gap-2 shadow-xs cursor-pointer active:scale-95"
-              >
-                {/* Official Google 'G' icon */}
-                <svg className="w-3.5 h-3.5" viewBox="0 0 24 24">
-                  <path
-                    fill="#4285F4"
-                    d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"
-                  />
-                  <path
-                    fill="#34A853"
-                    d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"
-                  />
-                  <path
-                    fill="#FBBC05"
-                    d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z"
-                  />
-                  <path
-                    fill="#EA4335"
-                    d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z"
-                  />
-                </svg>
-                <span>เข้าสู่ระบบ Google Sheets</span>
-              </button>
-            )}
-          </div>
+              )}
+
+              {user ? (
+                <button
+                  onClick={onLogoutGoogle}
+                  className="p-1 text-slate-300 hover:text-rose-300 hover:bg-slate-800 rounded-lg transition-colors cursor-pointer"
+                  title="ออกจากระบบ Google"
+                >
+                  <LogOut className="w-3.5 h-3.5" />
+                </button>
+              ) : (
+                <button
+                  onClick={onLoginGoogle}
+                  className="px-2.5 py-1 bg-slate-800 hover:bg-slate-700 text-slate-200 hover:text-white rounded-lg font-medium transition-all flex items-center gap-1.5 shadow-xs cursor-pointer active:scale-95 text-[11px] border border-slate-700"
+                  title="เข้าสู่ระบบด้วยบัญชี Google เพื่อควบคุมสเปรดชีตโดยตรง"
+                >
+                  {/* Official Google 'G' icon */}
+                  <svg className="w-3 h-3" viewBox="0 0 24 24">
+                    <path
+                      fill="#4285F4"
+                      d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"
+                    />
+                    <path
+                      fill="#34A853"
+                      d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"
+                    />
+                    <path
+                      fill="#FBBC05"
+                      d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z"
+                    />
+                    <path
+                      fill="#EA4335"
+                      d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z"
+                    />
+                  </svg>
+                  <span>OAuth Login</span>
+                </button>
+              )}
+            </div>
+          )}
         </div>
       </div>
 
@@ -203,21 +233,39 @@ export const GoogleSheetsBar: React.FC<GoogleSheetsBarProps> = ({
             </div>
 
             <div className="space-y-3 text-xs">
-              {/* Account info */}
+              {/* Account info or Web App status */}
               <div className="p-3 bg-slate-50 rounded-xl border border-slate-200 flex items-center justify-between">
                 <div>
-                  <span className="text-[11px] text-slate-500 block">บัญชี Google ที่เชื่อมต่อ:</span>
-                  <span className="font-semibold text-slate-800">{user?.displayName || user?.email}</span>
+                  <span className="text-[11px] text-slate-500 block">การเชื่อมต่อ:</span>
+                  <span className="font-semibold text-slate-800">
+                    {user
+                      ? `บัญชี Google (${user.displayName || user.email})`
+                      : webAppUrl
+                      ? 'Google Apps Script Web App API (Active)'
+                      : 'ยังไม่ได้เชื่อมต่อ'}
+                  </span>
                 </div>
-                <button
-                  onClick={() => {
-                    onLogoutGoogle();
-                    setModalOpen(false);
-                  }}
-                  className="px-2.5 py-1 text-[11px] text-rose-600 hover:bg-rose-50 rounded-lg border border-rose-200 font-medium cursor-pointer"
-                >
-                  ออกจากระบบ
-                </button>
+                {user ? (
+                  <button
+                    onClick={() => {
+                      onLogoutGoogle();
+                      setModalOpen(false);
+                    }}
+                    className="px-2.5 py-1 text-[11px] text-rose-600 hover:bg-rose-50 rounded-lg border border-rose-200 font-medium cursor-pointer"
+                  >
+                    ออกจากระบบ
+                  </button>
+                ) : (
+                  <button
+                    onClick={() => {
+                      setModalOpen(false);
+                      onOpenAppsScriptModal();
+                    }}
+                    className="px-2.5 py-1 text-[11px] text-purple-700 hover:bg-purple-50 rounded-lg border border-purple-200 font-medium cursor-pointer"
+                  >
+                    ตั้งค่า Web App
+                  </button>
+                )}
               </div>
 
               {/* Spreadsheet ID / Link */}
