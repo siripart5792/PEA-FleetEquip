@@ -115,6 +115,23 @@ export default function App() {
   // Status counts
   const { pendingCount } = getTodayStatusCounts(vehicles, records);
 
+  // Refs to store current values for callbacks without causing re-render loops
+  const branchesRef = useRef(branches);
+  branchesRef.current = branches;
+  const equipmentRef = useRef(masterEquipment);
+  equipmentRef.current = masterEquipment;
+  const vehiclesRef = useRef(vehicles);
+  vehiclesRef.current = vehicles;
+  const recordsRef = useRef(records);
+  recordsRef.current = records;
+  const webAppUrlRef = useRef(webAppUrl);
+  webAppUrlRef.current = webAppUrl;
+  const googleTokenRef = useRef(googleToken);
+  googleTokenRef.current = googleToken;
+  const spreadsheetIdRef = useRef(spreadsheetId);
+  spreadsheetIdRef.current = spreadsheetId;
+  const isSyncingRef = useRef(false);
+
   // Google Sheets: Push data to sheets helper (handles Web App API and/or OAuth)
   const pushCurrentStateToSheets = useCallback(
     async (
@@ -130,21 +147,26 @@ export default function App() {
       }
     ) => {
       const payload = {
-        branches: customData?.b || branches,
-        equipment: customData?.e || masterEquipment,
-        vehicles: customData?.v || vehicles,
-        records: customData?.r || records,
+        branches: customData?.b || branchesRef.current,
+        equipment: customData?.e || equipmentRef.current,
+        vehicles: customData?.v || vehiclesRef.current,
+        records: customData?.r || recordsRef.current,
         adminPin: getAdminPin(),
       };
 
+      const currentWebAppUrl = webAppUrlRef.current;
+      const currentToken = googleTokenRef.current || getCurrentToken();
+      const currentSheetId = spreadsheetIdRef.current;
+
       // 1. If Web App URL is configured, push via Google Apps Script Web App immediately
-      if (webAppUrl) {
+      if (currentWebAppUrl) {
         setIsSyncing(true);
+        isSyncingRef.current = true;
         try {
           if (actionInfo) {
-            await postToWebAppAction(webAppUrl, actionInfo.action, actionInfo.payload);
+            await postToWebAppAction(currentWebAppUrl, actionInfo.action, actionInfo.payload);
           }
-          await pushToWebApp(webAppUrl, payload);
+          await pushToWebApp(currentWebAppUrl, payload);
           const timeStr = new Date().toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' });
           setLastSyncTime(timeStr);
           setSyncError(null);
@@ -152,15 +174,16 @@ export default function App() {
           console.warn('Web App push error:', err);
         } finally {
           setIsSyncing(false);
+          isSyncingRef.current = false;
         }
       }
 
       // 2. If OAuth token & sheetId are available, also push via Google Sheets API
-      const token = googleToken || getCurrentToken();
-      if (token && spreadsheetId) {
+      if (currentToken && currentSheetId) {
         setIsSyncing(true);
+        isSyncingRef.current = true;
         try {
-          await pushAllToGoogleSheets(token, spreadsheetId, payload);
+          await pushAllToGoogleSheets(currentToken, currentSheetId, payload);
           const timeStr = new Date().toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' });
           setLastSyncTime(timeStr);
           setSyncError(null);
@@ -168,24 +191,32 @@ export default function App() {
           console.warn('Failed to push to Google Sheets:', err);
         } finally {
           setIsSyncing(false);
+          isSyncingRef.current = false;
         }
       }
     },
-    [branches, masterEquipment, vehicles, records, webAppUrl, googleToken, spreadsheetId]
+    []
   );
 
   /**
    * Fetch from Google Sheets
-   * Defined as a function that can be called anytime (on mount, on tab switch, or on button click)
+   * Syncs ONLY when clicked or operated by user, never in a continuous background loop
    */
   const syncFromGoogleSheets = useCallback(
     async (showSuccessToast = false) => {
+      if (isSyncingRef.current) return;
+
+      const currentWebAppUrl = webAppUrlRef.current;
+      const currentToken = googleTokenRef.current || getCurrentToken();
+      const currentSheetId = spreadsheetIdRef.current;
+
       // 1. If Web App URL is configured, prioritize Apps Script Web App
-      if (webAppUrl) {
+      if (currentWebAppUrl) {
         setIsSyncing(true);
+        isSyncingRef.current = true;
         setSyncError(null);
         try {
-          const data = await fetchFromWebApp(webAppUrl);
+          const data = await fetchFromWebApp(currentWebAppUrl);
           if (data.hasData) {
             if (data.branches && data.branches.length > 0) {
               setBranches(data.branches);
@@ -212,35 +243,35 @@ export default function App() {
           if (showSuccessToast) {
             addToast('success', 'ซิงค์ข้อมูลผ่าน Google Apps Script สำเร็จ', `อัปเดตข้อมูลล่าสุดเมื่อเวลา ${timeStr} น.`);
           }
-          setIsSyncing(false);
           return;
         } catch (webAppErr: any) {
           console.warn('Apps Script Web App sync failed:', webAppErr);
           setSyncError(webAppErr.message || 'ไม่สามารถซิงค์ผ่าน Web App API ได้');
         } finally {
           setIsSyncing(false);
+          isSyncingRef.current = false;
         }
       }
 
-      const token = googleToken || getCurrentToken();
-      if (!token) return;
+      if (!currentToken) return;
 
       setIsSyncing(true);
+      isSyncingRef.current = true;
       setSyncError(null);
 
       try {
         // Ensure spreadsheet exists or locate it
-        const sheetInfo = await findOrCreateSpreadsheet(token, spreadsheetId || undefined);
+        const sheetInfo = await findOrCreateSpreadsheet(currentToken, currentSheetId || undefined);
         setSpreadsheetId(sheetInfo.id);
         setSpreadsheetUrl(sheetInfo.url);
 
         if (sheetInfo.isNew) {
           // New sheet created: push initial dataset up immediately
-          await pushAllToGoogleSheets(token, sheetInfo.id, {
-            branches,
-            equipment: masterEquipment,
-            vehicles,
-            records,
+          await pushAllToGoogleSheets(currentToken, sheetInfo.id, {
+            branches: branchesRef.current,
+            equipment: equipmentRef.current,
+            vehicles: vehiclesRef.current,
+            records: recordsRef.current,
             adminPin: getAdminPin(),
           });
           const timeStr = new Date().toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' });
@@ -252,7 +283,7 @@ export default function App() {
         }
 
         // Fetch all 5 tables from Google Sheets
-        const data = await fetchAllFromGoogleSheets(token, sheetInfo.id);
+        const data = await fetchAllFromGoogleSheets(currentToken, sheetInfo.id);
 
         if (data.hasData) {
           if (data.branches && data.branches.length > 0) {
@@ -276,11 +307,11 @@ export default function App() {
           }
         } else {
           // Sheets were empty, populate with local data
-          await pushAllToGoogleSheets(token, sheetInfo.id, {
-            branches,
-            equipment: masterEquipment,
-            vehicles,
-            records,
+          await pushAllToGoogleSheets(currentToken, sheetInfo.id, {
+            branches: branchesRef.current,
+            equipment: equipmentRef.current,
+            vehicles: vehiclesRef.current,
+            records: recordsRef.current,
             adminPin: getAdminPin(),
           });
         }
@@ -299,29 +330,26 @@ export default function App() {
         }
       } finally {
         setIsSyncing(false);
+        isSyncingRef.current = false;
       }
     },
-    [webAppUrl, googleToken, spreadsheetId, branches, masterEquipment, vehicles, records, addToast]
+    [addToast]
   );
 
-  // Initialize Auth on App Mount & Auto-sync on startup
+  // Initialize Auth on App Mount & Sync ONCE on entrance (not continuously)
   useEffect(() => {
-    // Initial sync from Web App URL if available
-    if (webAppUrl) {
-      syncFromGoogleSheets(false);
-    }
+    // Initial sync from Google Sheets on app startup (only once)
+    syncFromGoogleSheets(false);
 
     const unsubscribe = initGoogleAuth((user, token) => {
       setGoogleUser(user);
       setGoogleToken(token);
-      if (user && token) {
-        // Auto sync on entrance
-        syncFromGoogleSheets(false);
-      }
     });
 
     return () => unsubscribe();
-  }, [syncFromGoogleSheets, webAppUrl]);
+    // Empty array ensures it runs ONCE on mount, not continuously in background
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // Google Login Handler
   const handleGoogleLogin = async () => {

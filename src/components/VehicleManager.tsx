@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Plus, Edit2, Trash2, Search, Lock, Car, Shield, Wrench, CheckSquare, Square, AlertCircle, X, ShieldCheck, Check, Building2 } from 'lucide-react';
 import { Vehicle, MasterEquipment, UserRole, VehicleType, EquipmentCategory, PeaBranch } from '../types/fleet';
 import { MultiBranchSelect } from './MultiBranchSelect';
+import { THAI_PROVINCES } from '../data/provinces';
 
 interface VehicleManagerProps {
   vehicles: Vehicle[];
@@ -14,12 +15,7 @@ interface VehicleManagerProps {
   onDeleteVehicle: (id: string) => void;
 }
 
-const PROVINCES = [
-  'กรุงเทพมหานคร', 'นนทบุรี', 'ปทุมธานี', 'สมุทรปราการ', 'สระบุรี', 'พระนครศรีอยุธยา',
-  'ลพบุรี', 'ชลบุรี', 'ระยอง', 'ฉะเชิงเทรา', 'จันทบุรี', 'เชียงใหม่', 'เชียงราย',
-  'ลำปาง', 'พิษณุโลก', 'นครราชสีมา', 'ขอนแก่น', 'อุดรธานี', 'อุบลราชธานี',
-  'สงขลา', 'ภูเก็ต', 'สุราษฎร์ธานี', 'นครศรีธรรมราช'
-];
+const PROVINCES = THAI_PROVINCES;
 
 export const VehicleManager: React.FC<VehicleManagerProps> = ({
   vehicles,
