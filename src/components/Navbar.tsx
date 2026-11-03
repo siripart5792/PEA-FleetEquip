@@ -27,12 +27,17 @@ export const Navbar: React.FC<NavbarProps> = ({
           <div className="flex items-center gap-2.5 shrink-0">
             <button
               onClick={() => onSelectTab('daily')}
-              className="text-left font-bold text-lg sm:text-xl tracking-tight text-purple-900 whitespace-nowrap shrink-0 hover:text-purple-700 transition-colors flex items-center gap-2 cursor-pointer"
+              className="text-left font-bold text-lg sm:text-xl tracking-tight text-purple-900 whitespace-nowrap shrink-0 hover:text-purple-700 transition-colors flex items-center gap-2.5 cursor-pointer"
             >
-              <span className="w-8 h-8 rounded-lg bg-gradient-to-br from-purple-700 to-purple-900 text-white flex items-center justify-center font-black text-xs shadow-xs">
-                PEA
+              <img
+                src="/favicon.svg"
+                alt="PEA FleetEquip Logo"
+                className="w-9 h-9 rounded-xl shadow-xs"
+              />
+              <span className="flex items-baseline gap-1">
+                <span className="text-purple-900 font-black">PEA</span>
+                <span className="text-slate-800 font-bold">FleetEquip</span>
               </span>
-              <span>FleetEquip</span>
             </button>
             <span className="hidden xl:inline-block text-xs font-medium text-slate-500 border-l border-slate-200 pl-2.5 whitespace-nowrap">
               ระบบตรวจอุปกรณ์ประจำรถ การไฟฟ้าส่วนภูมิภาค

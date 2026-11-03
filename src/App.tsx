@@ -862,9 +862,7 @@ export default function App() {
       <footer className="bg-white border-t border-slate-200 mt-12 py-6 text-xs text-slate-500">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col sm:flex-row items-center justify-between gap-4">
           <div className="flex items-center gap-2">
-            <div className="w-5 h-5 rounded bg-purple-700 text-white flex items-center justify-center font-bold text-[10px]">
-              PEA
-            </div>
+            <img src="/favicon.svg" alt="PEA" className="w-5 h-5 rounded shadow-2xs" />
             <span className="font-semibold text-slate-800">
               การไฟฟ้าส่วนภูมิภาค (Provincial Electricity Authority)
             </span>
