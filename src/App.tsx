@@ -170,9 +170,12 @@ export default function App() {
         isSyncingRef.current = true;
         try {
           if (actionInfo) {
+            // ดำเนินการเฉพาะ action เจาะจง (เช่น บันทึกตรวจเช็คใหม่) ไม่ล้างหรือเขียนทับทั้งแผ่นงาน
             await postToWebAppAction(currentWebAppUrl, actionInfo.action, actionInfo.payload);
+          } else {
+            // เมื่อสั่ง Force Push หรือ Reset ข้อมูลทั้งหมด
+            await pushToWebApp(currentWebAppUrl, payload);
           }
-          await pushToWebApp(currentWebAppUrl, payload);
           const timeStr = new Date().toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' });
           setLastSyncTime(timeStr);
           setSyncError(null);
@@ -184,8 +187,8 @@ export default function App() {
         }
       }
 
-      // 2. If OAuth token & sheetId are available, also push via Google Sheets API
-      if (currentToken && currentSheetId) {
+      // 2. If OAuth token & sheetId are available, push via Google Sheets API (เมื่อเป็นการบันทึกทั้งหมดเท่านั้น)
+      if (currentToken && currentSheetId && !actionInfo) {
         setIsSyncing(true);
         isSyncingRef.current = true;
         try {
@@ -237,11 +240,27 @@ export default function App() {
               saveVehicles(data.vehicles);
             }
             if (data.records && data.records.length > 0) {
-              const cleanRecords = data.records.map((r) => ({
-                ...r,
-                inspectionDate: normalizeToThailandDate(r.inspectionDate),
-                inspectionTime: normalizeToThailandTime(r.inspectionTime),
-              }));
+              const cleanRecords = data.records.map((r) => {
+                const normDate = normalizeToThailandDate(r.inspectionDate);
+                const normTime = normalizeToThailandTime(r.inspectionTime, r.createdAt);
+
+                // รักษาวันและเวลาเดิมของรายการที่บันทึกไว้ในเครื่องเสมอ ไม่ให้ถูกเขียนทับด้วยเวลาเพี้ยน
+                const existing = recordsRef.current.find((local) => local.id === r.id);
+                const preservedTime =
+                  existing && existing.inspectionTime && !existing.inspectionTime.includes('1899')
+                    ? existing.inspectionTime
+                    : normTime;
+                const preservedDate =
+                  existing && existing.inspectionDate && /^\d{4}-\d{2}-\d{2}$/.test(existing.inspectionDate)
+                    ? existing.inspectionDate
+                    : normDate;
+
+                return {
+                  ...r,
+                  inspectionDate: preservedDate,
+                  inspectionTime: preservedTime,
+                };
+              });
               setRecords(cleanRecords);
               saveInspections(cleanRecords);
             }
@@ -310,11 +329,27 @@ export default function App() {
             saveVehicles(data.vehicles);
           }
           if (data.records && data.records.length > 0) {
-            const cleanRecords = data.records.map((r) => ({
-              ...r,
-              inspectionDate: normalizeToThailandDate(r.inspectionDate),
-              inspectionTime: normalizeToThailandTime(r.inspectionTime),
-            }));
+            const cleanRecords = data.records.map((r) => {
+              const normDate = normalizeToThailandDate(r.inspectionDate);
+              const normTime = normalizeToThailandTime(r.inspectionTime, r.createdAt);
+
+              // รักษาวันและเวลาเดิมของรายการที่บันทึกไว้ในเครื่องเสมอ ไม่ให้ถูกเขียนทับด้วยเวลาเพี้ยน
+              const existing = recordsRef.current.find((local) => local.id === r.id);
+              const preservedTime =
+                existing && existing.inspectionTime && !existing.inspectionTime.includes('1899')
+                  ? existing.inspectionTime
+                  : normTime;
+              const preservedDate =
+                existing && existing.inspectionDate && /^\d{4}-\d{2}-\d{2}$/.test(existing.inspectionDate)
+                  ? existing.inspectionDate
+                  : normDate;
+
+              return {
+                ...r,
+                inspectionDate: preservedDate,
+                inspectionTime: preservedTime,
+              };
+            });
             setRecords(cleanRecords);
             saveInspections(cleanRecords);
           }

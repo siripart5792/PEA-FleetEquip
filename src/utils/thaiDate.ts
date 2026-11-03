@@ -83,36 +83,67 @@ export function normalizeToThailandDate(dateInput: any): string {
 /**
  * จัดการแปลงค่าเวลาที่มาจาก Google Sheets, Web App หรือ ISO string ให้อยู่ในรูป HH:mm ตามเวลาไทยเสมอ
  */
-export function normalizeToThailandTime(timeInput: any): string {
-  if (!timeInput) return getThailandNowTimeString();
-  let str = String(timeInput).trim();
+/**
+ * จัดการแปลงค่าเวลาที่มาจาก Google Sheets, Web App หรือ ISO string ให้อยู่ในรูป HH:mm ตามเวลาไทยเสมอ
+ * หากค่าเวลาเดิมเสียหายจาก 1899 Date ของ Google Sheets จะดึงเวลาแท้จริงจาก createdAtFallback เพื่อป้องกันเวลาเพี้ยน
+ */
+export function normalizeToThailandTime(timeInput: any, createdAtFallback?: any): string {
+  if (timeInput) {
+    let str = String(timeInput).trim();
+    // กำจัด ' น.' หรือ 'น.' ที่อาจติดมา
+    str = str.replace(/\s*น\.?$/i, '').trim();
 
-  // กำจัด ' น.' หรือ 'น.' ที่อาจติดมา
-  str = str.replace(/\s*น\.?$/i, '').trim();
+    // 1. หากเป็นรูปแบบเวลามาตรฐานอยู่แล้ว เช่น "11:57", "08:30", "8:30", "08:30:00"
+    const hhmmMatch = str.match(/^(\d{1,2}):(\d{2})(:(\d{2}))?$/);
+    if (hhmmMatch) {
+      const hh = hhmmMatch[1].padStart(2, '0');
+      const mm = hhmmMatch[2];
+      return `${hh}:${mm}`;
+    }
 
-  // หากเป็นรูปแบบเวลามาตรฐานอยู่แล้ว เช่น "08:30" หรือ "8:30" หรือ "08:30:00"
-  const hhmmMatch = str.match(/^(\d{1,2}):(\d{2})(:(\d{2}))?$/);
-  if (hhmmMatch) {
-    const hh = hhmmMatch[1].padStart(2, '0');
-    const mm = hhmmMatch[2];
-    return `${hh}:${mm}`;
-  }
+    // 2. หากข้อมูลปนเปื้อน 1899 Date String จาก Google Sheets แต่มี createdAt แท้จริง ให้ดึงจาก createdAt ทันที
+    if (str.includes('1899') && createdAtFallback) {
+      const createdStr = String(createdAtFallback).trim();
+      if (!createdStr.includes('1899')) {
+        const d = new Date(createdStr);
+        if (!isNaN(d.getTime())) {
+          const thaiHours = (d.getUTCHours() + 7) % 24;
+          const thaiMinutes = d.getUTCMinutes();
+          return `${String(thaiHours).padStart(2, '0')}:${String(thaiMinutes).padStart(2, '0')}`;
+        }
+      }
+    }
 
-  // หากเป็น ISO datetime เช่น 1899-12-30T01:30:00.000Z หรือ 2026-11-03T...
-  if (str.includes('T') || str.includes('Z')) {
-    const parsed = new Date(str);
-    if (!isNaN(parsed.getTime())) {
-      // แปลง UTC hour + 7 hours สำหรับประเทศไทย (ครอบคลุมทั้ง 1899 และปีปัจจุบัน)
-      const thaiHours = (parsed.getUTCHours() + 7) % 24;
-      const thaiMinutes = parsed.getUTCMinutes();
-      return `${String(thaiHours).padStart(2, '0')}:${String(thaiMinutes).padStart(2, '0')}`;
+    // 3. หากเป็น ISO datetime ปกติ (ที่ไม่ใช่ 1899) เช่น 2026-11-03T04:57:43.345Z
+    if ((str.includes('T') || str.includes('Z')) && !str.includes('1899')) {
+      const parsed = new Date(str);
+      if (!isNaN(parsed.getTime())) {
+        const thaiHours = (parsed.getUTCHours() + 7) % 24;
+        const thaiMinutes = parsed.getUTCMinutes();
+        return `${String(thaiHours).padStart(2, '0')}:${String(thaiMinutes).padStart(2, '0')}`;
+      }
+    }
+
+    // 4. ค้นหาตำแหน่ง HH:mm ใดๆ ในข้อความที่ไม่ใช่ 1899
+    if (!str.includes('1899')) {
+      const subMatch = str.match(/(\d{1,2}):(\d{2})/);
+      if (subMatch) {
+        return `${subMatch[1].padStart(2, '0')}:${subMatch[2]}`;
+      }
     }
   }
 
-  // ค้นหาตำแหน่ง HH:mm ใดๆ ในข้อความ
-  const subMatch = str.match(/(\d{1,2}):(\d{2})/);
-  if (subMatch) {
-    return `${subMatch[1].padStart(2, '0')}:${subMatch[2]}`;
+  // 5. หากไม่มี timeInput หรือ timeInput เสียหาย แต่มี createdAtFallback
+  if (createdAtFallback) {
+    const createdStr = String(createdAtFallback).trim();
+    if (!createdStr.includes('1899')) {
+      const d = new Date(createdStr);
+      if (!isNaN(d.getTime())) {
+        const thaiHours = (d.getUTCHours() + 7) % 24;
+        const thaiMinutes = d.getUTCMinutes();
+        return `${String(thaiHours).padStart(2, '0')}:${String(thaiMinutes).padStart(2, '0')}`;
+      }
+    }
   }
 
   return getThailandNowTimeString();

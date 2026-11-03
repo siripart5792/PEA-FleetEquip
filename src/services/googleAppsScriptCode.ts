@@ -370,20 +370,35 @@ function getInspectionsFromSheet(ss) {
     }
 
     var rawTime = r[10];
+    var rawCreated = r[17] ? String(r[17]).trim() : "";
     var formattedTime = "";
-    if (rawTime instanceof Date) {
-      var h = rawTime.getHours();
-      var min = rawTime.getMinutes();
-      formattedTime = (h < 10 ? "0" + h : "" + h) + ":" + (min < 10 ? "0" + min : "" + min);
-    } else if (rawTime) {
-      var tStr = String(rawTime).trim().replace(/\s*น\.?$/i, "");
-      var tm = tStr.match(/(\d{1,2}):(\d{2})/);
-      if (tm) {
-        var h = parseInt(tm[1], 10);
-        var min = tm[2];
-        formattedTime = (h < 10 ? "0" + h : "" + h) + ":" + min;
-      } else {
-        formattedTime = tStr;
+
+    // 1. ตรวจสอบว่ามี createdAt ที่เป็นเวลาจริง (UTC+7) หรือไม่เพื่อป้องกันข้อผิดพลาด 1899 Date ของชีต
+    if (rawCreated && rawCreated.indexOf("1899") === -1 && rawCreated.indexOf("T") > 0) {
+      var cDate = new Date(rawCreated);
+      if (!isNaN(cDate.getTime())) {
+        var ch = (cDate.getUTCHours() + 7) % 24;
+        var cmin = cDate.getUTCMinutes();
+        formattedTime = (ch < 10 ? "0" + ch : "" + ch) + ":" + (cmin < 10 ? "0" + cmin : "" + cmin);
+      }
+    }
+
+    // 2. หากยังไม่ได้เวลา ให้ดึงจาก rawTime
+    if (!formattedTime) {
+      if (rawTime instanceof Date) {
+        var h = rawTime.getHours();
+        var min = rawTime.getMinutes();
+        formattedTime = (h < 10 ? "0" + h : "" + h) + ":" + (min < 10 ? "0" + min : "" + min);
+      } else if (rawTime) {
+        var tStr = String(rawTime).trim().replace(/\s*น\.?$/i, "");
+        var tm = tStr.match(/(\d{1,2}):(\d{2})/);
+        if (tm) {
+          var h = parseInt(tm[1], 10);
+          var min = tm[2];
+          formattedTime = (h < 10 ? "0" + h : "" + h) + ":" + min;
+        } else {
+          formattedTime = tStr;
+        }
       }
     }
 
@@ -423,6 +438,9 @@ function saveInspectionRecord(ss, record, updatedMileage) {
   var dateStr = String(record.inspectionDate || "").trim();
   var timeStr = String(record.inspectionTime || "").trim();
 
+  // ใส่เครื่องหมาย ' นำหน้าเวลา เพื่อบังคับให้ Google Sheets บันทึกเป็น Text ไม่ถูกแปลงเป็น Date 1899
+  var safeTimeValue = timeStr ? ("'" + timeStr) : "";
+
   var rowValues = [
     record.id || ("rec-" + Date.now()),
     record.vehicleId,
@@ -434,7 +452,7 @@ function saveInspectionRecord(ss, record, updatedMileage) {
     record.peaBranchName || "",
     record.department,
     dateStr,
-    timeStr,
+    safeTimeValue,
     record.inspectorName,
     record.inspectorRole,
     record.odometerReading,

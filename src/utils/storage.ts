@@ -89,7 +89,7 @@ export function loadInspections(): InspectionRecord[] {
       return parsed.map((r: InspectionRecord) => ({
         ...r,
         inspectionDate: normalizeToThailandDate(r.inspectionDate),
-        inspectionTime: normalizeToThailandTime(r.inspectionTime),
+        inspectionTime: normalizeToThailandTime(r.inspectionTime, r.createdAt),
       }));
     }
     return getInitialRecords();

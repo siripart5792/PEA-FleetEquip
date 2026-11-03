@@ -423,7 +423,7 @@ export async function fetchAllFromGoogleSheets(
         peaBranchName: r[7] ? String(r[7]) : undefined,
         department: String(r[8] || ''),
         inspectionDate: normalizeToThailandDate(r[9]),
-        inspectionTime: normalizeToThailandTime(r[10]),
+        inspectionTime: normalizeToThailandTime(r[10], r[17]),
         inspectorName: String(r[11]),
         inspectorRole: String(r[12] || 'พนักงานขับรถ'),
         odometerReading: Number(r[13]) || 0,
@@ -648,7 +648,7 @@ export async function fetchFromWebApp(webAppUrl: string): Promise<{
   const records = rawRecords.map((r: any) => ({
     ...r,
     inspectionDate: normalizeToThailandDate(r.inspectionDate),
-    inspectionTime: normalizeToThailandTime(r.inspectionTime),
+    inspectionTime: normalizeToThailandTime(r.inspectionTime, r.createdAt),
   }));
   const adminPin = d.adminPin;
 
