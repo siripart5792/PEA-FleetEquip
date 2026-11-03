@@ -1,5 +1,6 @@
 import { MasterEquipment, Vehicle, InspectionRecord, PeaBranch } from '../types/fleet';
 import { INITIAL_EQUIPMENT, INITIAL_VEHICLES, INITIAL_PEA_BRANCHES, getInitialRecords, getTodayDateString } from '../data/initialData';
+import { normalizeToThailandDate, normalizeToThailandTime } from './thaiDate';
 
 const STORAGE_KEYS = {
   EQUIPMENT: 'fleet_equip_master_v1',
@@ -83,7 +84,15 @@ export function loadInspections(): InspectionRecord[] {
       localStorage.setItem(STORAGE_KEYS.INSPECTIONS, JSON.stringify(init));
       return init;
     }
-    return JSON.parse(raw);
+    const parsed = JSON.parse(raw);
+    if (Array.isArray(parsed)) {
+      return parsed.map((r: InspectionRecord) => ({
+        ...r,
+        inspectionDate: normalizeToThailandDate(r.inspectionDate),
+        inspectionTime: normalizeToThailandTime(r.inspectionTime),
+      }));
+    }
+    return getInitialRecords();
   } catch (err) {
     console.error('Error loading inspections:', err);
     return getInitialRecords();
@@ -129,7 +138,7 @@ export function resetAllDataToDefault(): void {
 // Helpers for today's status
 export function getTodayInspectionForVehicle(vehicleId: string, records: InspectionRecord[]): InspectionRecord | undefined {
   const today = getTodayDateString();
-  return records.find(r => r.vehicleId === vehicleId && r.inspectionDate === today);
+  return records.find(r => r.vehicleId === vehicleId && normalizeToThailandDate(r.inspectionDate) === today);
 }
 
 export function getTodayStatusCounts(
@@ -148,7 +157,7 @@ export function getTodayStatusCounts(
       return branchFilter.length === 0 || branchFilter.includes(v.peaBranchId);
     });
 
-  const todayRecords = records.filter(r => r.inspectionDate === today);
+  const todayRecords = records.filter(r => normalizeToThailandDate(r.inspectionDate) === today);
   
   const inspectedVehicleIds = new Set(todayRecords.map(r => r.vehicleId));
   const inspectedCount = activeVehicles.filter(v => inspectedVehicleIds.has(v.id)).length;

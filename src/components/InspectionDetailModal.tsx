@@ -1,7 +1,7 @@
 import React from 'react';
 import { X, CheckCircle, AlertTriangle, Printer, Calendar, Clock, User, Gauge, Shield, Wrench, FileText, Cpu, Package, Trash2 } from 'lucide-react';
 import { InspectionRecord, EquipmentCategory, UserRole } from '../types/fleet';
-import { formatThaiDate } from '../utils/lineMessage';
+import { formatThaiDate, formatThaiTime } from '../utils/thaiDate';
 
 interface InspectionDetailModalProps {
   record: InspectionRecord | null;
@@ -97,7 +97,7 @@ export const InspectionDetailModal: React.FC<InspectionDetailModalProps> = ({
               <Clock className="w-4 h-4 text-slate-400 mt-0.5" />
               <div>
                 <span className="text-slate-500 block">เวลาที่ตรวจ:</span>
-                <span className="font-semibold text-slate-800 font-mono tabular-nums">{record.inspectionTime} น.</span>
+                <span className="font-semibold text-slate-800 font-mono tabular-nums">{formatThaiTime(record.inspectionTime)}</span>
               </div>
             </div>
 

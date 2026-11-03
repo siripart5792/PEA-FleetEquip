@@ -1,39 +1,11 @@
 import { Vehicle, InspectionRecord } from '../types/fleet';
 import { getTodayStatusCounts } from './storage';
+import { formatThaiDate, formatFullThaiDate, formatThaiTime, getThailandNowTimeString } from './thaiDate';
 
-// Helper for Thai Date format e.g. 30 ต.ค. 2569
-export function formatThaiDate(dateStr: string): string {
-  try {
-    const [y, m, d] = dateStr.split('-').map(Number);
-    const date = new Date(y, m - 1, d);
-    const thaiMonths = [
-      'ม.ค.', 'ก.พ.', 'มี.ค.', 'เม.ย.', 'พ.ค.', 'มิ.ย.',
-      'ก.ค.', 'ส.ค.', 'ก.ย.', 'ต.ค.', 'พ.ย.', 'ธ.ค.'
-    ];
-    const thaiYear = y + 543;
-    return `${d} ${thaiMonths[m - 1]} ${thaiYear}`;
-  } catch {
-    return dateStr;
-  }
-}
+export { formatThaiDate, formatFullThaiDate, formatThaiTime };
 
-export function formatFullThaiDate(date: Date = new Date()): string {
-  const dayNames = ['วันอาทิตย์', 'วันจันทร์', 'วันอังคาร', 'วันพุธ', 'วันพฤหัสบดี', 'วันศุกร์', 'วันเสาร์'];
-  const thaiMonthsFull = [
-    'มกราคม', 'กุมภาพันธ์', 'มีนาคม', 'เมษายน', 'พฤษภาคม', 'มิถุนายน',
-    'กรกฎาคม', 'สิงหาคม', 'กันยายน', 'ตุลาคม', 'พฤศจิกายน', 'ธันวาคม'
-  ];
-  const dayName = dayNames[date.getDay()];
-  const d = date.getDate();
-  const m = thaiMonthsFull[date.getMonth()];
-  const y = date.getFullYear() + 543;
-  return `${dayName}ที่ ${d} ${m} ${y}`;
-}
-
-export function formatTime(date: Date = new Date()): string {
-  const hours = String(date.getHours()).padStart(2, '0');
-  const minutes = String(date.getMinutes()).padStart(2, '0');
-  return `${hours}:${minutes} น.`;
+export function formatTime(date?: Date): string {
+  return formatThaiTime(date || new Date());
 }
 
 export interface LineMessageOptions {

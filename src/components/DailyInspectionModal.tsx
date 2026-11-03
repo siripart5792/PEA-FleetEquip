@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { X, CheckCircle, AlertTriangle, HelpCircle, Shield, Wrench, FileText, Cpu, Package, Check } from 'lucide-react';
 import { Vehicle, MasterEquipment, InspectionRecord, InspectionCheckItem, EquipmentItemStatus, EquipmentCategory } from '../types/fleet';
 import { getTodayDateString } from '../data/initialData';
+import { getThailandNowTimeString } from '../utils/thaiDate';
 
 interface DailyInspectionModalProps {
   vehicle: Vehicle | null;
@@ -29,10 +30,7 @@ export const DailyInspectionModal: React.FC<DailyInspectionModalProps> = ({
   const [inspectorRole, setInspectorRole] = useState('พนักงานขับรถ');
   const [odometerReading, setOdometerReading] = useState(vehicle.currentMileage || 0);
   const [inspectionDate, setInspectionDate] = useState(getTodayDateString());
-  const [inspectionTime, setInspectionTime] = useState(() => {
-    const d = new Date();
-    return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
-  });
+  const [inspectionTime, setInspectionTime] = useState(() => getThailandNowTimeString());
   const [notes, setNotes] = useState('');
 
   // Initialise check items state

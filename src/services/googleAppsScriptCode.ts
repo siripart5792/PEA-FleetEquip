@@ -349,6 +349,47 @@ function getInspectionsFromSheet(ss) {
       items = [];
     }
 
+    var rawDate = r[9];
+    var formattedDate = "";
+    if (rawDate instanceof Date) {
+      formattedDate = Utilities.formatDate(rawDate, "Asia/Bangkok", "yyyy-MM-dd");
+    } else if (rawDate) {
+      var dStr = String(rawDate).trim();
+      if (dStr.indexOf("T") > 0) {
+        var dObj = new Date(dStr);
+        if (!isNaN(dObj.getTime())) {
+          formattedDate = Utilities.formatDate(dObj, "Asia/Bangkok", "yyyy-MM-dd");
+        } else {
+          formattedDate = dStr.substring(0, 10);
+        }
+      } else {
+        formattedDate = dStr;
+      }
+    }
+
+    var rawTime = r[10];
+    var formattedTime = "";
+    if (rawTime instanceof Date) {
+      formattedTime = Utilities.formatDate(rawTime, "Asia/Bangkok", "HH:mm");
+    } else if (rawTime) {
+      var tStr = String(rawTime).trim();
+      if (tStr.indexOf("T") > 0 || tStr.indexOf("GMT") > 0 || tStr.indexOf("1899") >= 0) {
+        var tObj = new Date(tStr);
+        if (!isNaN(tObj.getTime())) {
+          formattedTime = Utilities.formatDate(tObj, "Asia/Bangkok", "HH:mm");
+        } else {
+          formattedTime = tStr;
+        }
+      } else {
+        var m = tStr.match(/(\d{1,2}):(\d{2})/);
+        if (m) {
+          formattedTime = (m[1].length < 2 ? "0" + m[1] : m[1]) + ":" + m[2];
+        } else {
+          formattedTime = tStr;
+        }
+      }
+    }
+
     result.push({
       id: String(r[0]),
       vehicleId: String(r[1]),
@@ -359,8 +400,8 @@ function getInspectionsFromSheet(ss) {
       peaBranchId: r[6] ? String(r[6]) : "",
       peaBranchName: r[7] ? String(r[7]) : "",
       department: String(r[8] || ""),
-      inspectionDate: String(r[9]),
-      inspectionTime: String(r[10]),
+      inspectionDate: formattedDate,
+      inspectionTime: formattedTime,
       inspectorName: String(r[11]),
       inspectorRole: String(r[12] || "พนักงานขับรถ"),
       odometerReading: Number(r[13]) || 0,

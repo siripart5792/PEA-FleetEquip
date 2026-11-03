@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Search, Calendar, FileText, Download, CheckCircle, AlertTriangle, Eye, Car, Building2, Trash2 } from 'lucide-react';
 import { InspectionRecord, Vehicle, PeaBranch, UserRole } from '../types/fleet';
-import { formatThaiDate } from '../utils/lineMessage';
+import { formatThaiDate, formatThaiTime, normalizeToThailandDate, normalizeToThailandTime } from '../utils/thaiDate';
 import { getTodayDateString, getOffsetDateString } from '../data/initialData';
 import { MultiBranchSelect } from './MultiBranchSelect';
 
@@ -56,29 +56,34 @@ export const HistoryView: React.FC<HistoryViewProps> = ({
     // Result filter
     const matchesResult = resultFilter === 'all' || rec.overallResult === resultFilter;
 
-    // Date range filter
+    // Date range filter (using Thailand timezone standard YYYY-MM-DD)
+    const recDate = normalizeToThailandDate(rec.inspectionDate);
     let matchesDate = true;
     if (dateRangeFilter === 'today') {
-      matchesDate = rec.inspectionDate === todayStr;
+      matchesDate = recDate === todayStr;
     } else if (dateRangeFilter === 'yesterday') {
-      matchesDate = rec.inspectionDate === yesterdayStr;
+      matchesDate = recDate === yesterdayStr;
     } else if (dateRangeFilter === 'week') {
-      matchesDate = rec.inspectionDate >= sevenDaysAgoStr && rec.inspectionDate <= todayStr;
+      matchesDate = recDate >= sevenDaysAgoStr && recDate <= todayStr;
     } else if (dateRangeFilter === 'month') {
-      matchesDate = rec.inspectionDate >= thirtyDaysAgoStr && rec.inspectionDate <= todayStr;
+      matchesDate = recDate >= thirtyDaysAgoStr && recDate <= todayStr;
     } else if (dateRangeFilter === 'custom' || startDate || endDate) {
-      if (startDate && rec.inspectionDate < startDate) matchesDate = false;
-      if (endDate && rec.inspectionDate > endDate) matchesDate = false;
+      if (startDate && recDate < startDate) matchesDate = false;
+      if (endDate && recDate > endDate) matchesDate = false;
     }
 
     return matchesSearch && matchesVehicle && matchesBranch && matchesResult && matchesDate;
   });
 
-  // Sort descending by date & time
+  // Sort descending by Thailand date & time
   const sortedRecords = [...filteredRecords].sort((a, b) => {
-    const timeA = `${a.inspectionDate}T${a.inspectionTime}`;
-    const timeB = `${b.inspectionDate}T${b.inspectionTime}`;
-    return timeB.localeCompare(timeA);
+    const dateA = normalizeToThailandDate(a.inspectionDate);
+    const dateB = normalizeToThailandDate(b.inspectionDate);
+    const timeA = normalizeToThailandTime(a.inspectionTime);
+    const timeB = normalizeToThailandTime(b.inspectionTime);
+    const compA = `${dateA}T${timeA}`;
+    const compB = `${dateB}T${timeB}`;
+    return compB.localeCompare(compA);
   });
 
   // Export CSV
@@ -105,8 +110,8 @@ export const HistoryView: React.FC<HistoryViewProps> = ({
     ];
 
     const rows = sortedRecords.map((r) => [
-      r.inspectionDate,
-      r.inspectionTime,
+      `"${formatThaiDate(r.inspectionDate)}"`,
+      `"${formatThaiTime(r.inspectionTime)}"`,
       `"${r.peaBranchName || 'การไฟฟ้าส่วนภูมิภาค'}"`,
       `"${r.plateNumber}"`,
       `"${r.province}"`,
@@ -339,7 +344,7 @@ export const HistoryView: React.FC<HistoryViewProps> = ({
                           {formatThaiDate(rec.inspectionDate)}
                         </div>
                         <div className="text-[11px] text-slate-500 font-mono tabular-nums">
-                          {rec.inspectionTime} น.
+                          {formatThaiTime(rec.inspectionTime)}
                         </div>
                       </td>
 

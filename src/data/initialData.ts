@@ -281,21 +281,14 @@ export const INITIAL_VEHICLES: Vehicle[] = [
   },
 ];
 
+import { getThailandTodayDateString, getThailandOffsetDateString } from '../utils/thaiDate';
+
 export function getTodayDateString(): string {
-  const now = new Date();
-  const year = now.getFullYear();
-  const month = String(now.getMonth() + 1).padStart(2, '0');
-  const day = String(now.getDate()).padStart(2, '0');
-  return `${year}-${month}-${day}`;
+  return getThailandTodayDateString();
 }
 
 export function getOffsetDateString(offsetDays: number): string {
-  const d = new Date();
-  d.setDate(d.getDate() + offsetDays);
-  const year = d.getFullYear();
-  const month = String(d.getMonth() + 1).padStart(2, '0');
-  const day = String(d.getDate()).padStart(2, '0');
-  return `${year}-${month}-${day}`;
+  return getThailandOffsetDateString(offsetDays);
 }
 
 export function getInitialRecords(): InspectionRecord[] {

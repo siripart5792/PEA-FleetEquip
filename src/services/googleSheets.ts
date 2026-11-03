@@ -26,6 +26,7 @@ import {
   VehicleType,
   EquipmentCategory,
 } from '../types/fleet';
+import { normalizeToThailandDate, normalizeToThailandTime } from '../utils/thaiDate';
 
 // Initialize Firebase App
 const app = getApps().length > 0 ? getApp() : initializeApp(firebaseConfig);
@@ -421,8 +422,8 @@ export async function fetchAllFromGoogleSheets(
         peaBranchId: r[6] ? String(r[6]) : undefined,
         peaBranchName: r[7] ? String(r[7]) : undefined,
         department: String(r[8] || ''),
-        inspectionDate: String(r[9]),
-        inspectionTime: String(r[10]),
+        inspectionDate: normalizeToThailandDate(r[9]),
+        inspectionTime: normalizeToThailandTime(r[10]),
         inspectorName: String(r[11]),
         inspectorRole: String(r[12] || 'พนักงานขับรถ'),
         odometerReading: Number(r[13]) || 0,
@@ -643,7 +644,12 @@ export async function fetchFromWebApp(webAppUrl: string): Promise<{
   const branches = Array.isArray(d.branches) ? d.branches : [];
   const equipment = Array.isArray(d.equipment) ? d.equipment : [];
   const vehicles = Array.isArray(d.vehicles) ? d.vehicles : [];
-  const records = Array.isArray(d.records) ? d.records : [];
+  const rawRecords = Array.isArray(d.records) ? d.records : [];
+  const records = rawRecords.map((r: any) => ({
+    ...r,
+    inspectionDate: normalizeToThailandDate(r.inspectionDate),
+    inspectionTime: normalizeToThailandTime(r.inspectionTime),
+  }));
   const adminPin = d.adminPin;
 
   return {
@@ -749,7 +755,12 @@ export async function saveInspectionToWebApp(
   record: InspectionRecord,
   updatedMileage?: number
 ): Promise<void> {
-  await postToWebAppAction(webAppUrl, 'saveInspection', { record, updatedMileage });
+  const normRecord = {
+    ...record,
+    inspectionDate: normalizeToThailandDate(record.inspectionDate),
+    inspectionTime: normalizeToThailandTime(record.inspectionTime),
+  };
+  await postToWebAppAction(webAppUrl, 'saveInspection', { record: normRecord, updatedMileage });
 }
 
 export async function deleteInspectionFromWebApp(webAppUrl: string, id: string): Promise<void> {

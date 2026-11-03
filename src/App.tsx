@@ -39,6 +39,12 @@ import {
   getTodayStatusCounts,
   resetAllDataToDefault,
 } from './utils/storage';
+import {
+  normalizeToThailandDate,
+  normalizeToThailandTime,
+  formatThaiDate,
+  formatThaiTime,
+} from './utils/thaiDate';
 
 import {
   initGoogleAuth,
@@ -231,8 +237,13 @@ export default function App() {
               saveVehicles(data.vehicles);
             }
             if (data.records && data.records.length > 0) {
-              setRecords(data.records);
-              saveInspections(data.records);
+              const cleanRecords = data.records.map((r) => ({
+                ...r,
+                inspectionDate: normalizeToThailandDate(r.inspectionDate),
+                inspectionTime: normalizeToThailandTime(r.inspectionTime),
+              }));
+              setRecords(cleanRecords);
+              saveInspections(cleanRecords);
             }
             if (data.adminPin) {
               setAdminPin(data.adminPin);
@@ -299,8 +310,13 @@ export default function App() {
             saveVehicles(data.vehicles);
           }
           if (data.records && data.records.length > 0) {
-            setRecords(data.records);
-            saveInspections(data.records);
+            const cleanRecords = data.records.map((r) => ({
+              ...r,
+              inspectionDate: normalizeToThailandDate(r.inspectionDate),
+              inspectionTime: normalizeToThailandTime(r.inspectionTime),
+            }));
+            setRecords(cleanRecords);
+            saveInspections(cleanRecords);
           }
           if (data.adminPin) {
             setAdminPin(data.adminPin);
@@ -509,16 +525,22 @@ export default function App() {
 
   // Inspection Save
   const handleSaveInspection = (newRecord: InspectionRecord, updatedMileage: number) => {
+    const sanitizedRecord: InspectionRecord = {
+      ...newRecord,
+      inspectionDate: normalizeToThailandDate(newRecord.inspectionDate),
+      inspectionTime: normalizeToThailandTime(newRecord.inspectionTime),
+    };
+
     const existingIndex = records.findIndex(
-      (r) => r.vehicleId === newRecord.vehicleId && r.inspectionDate === newRecord.inspectionDate
+      (r) => r.vehicleId === sanitizedRecord.vehicleId && normalizeToThailandDate(r.inspectionDate) === sanitizedRecord.inspectionDate
     );
 
     let updatedRecords: InspectionRecord[];
     if (existingIndex >= 0) {
       updatedRecords = [...records];
-      updatedRecords[existingIndex] = newRecord;
+      updatedRecords[existingIndex] = sanitizedRecord;
     } else {
-      updatedRecords = [newRecord, ...records];
+      updatedRecords = [sanitizedRecord, ...records];
     }
 
     setRecords(updatedRecords);
@@ -526,7 +548,7 @@ export default function App() {
 
     // Update vehicle mileage
     const updatedVehicles = vehicles.map((v) =>
-      v.id === newRecord.vehicleId
+      v.id === sanitizedRecord.vehicleId
         ? { ...v, currentMileage: Math.max(v.currentMileage, updatedMileage) }
         : v
     );
@@ -536,8 +558,8 @@ export default function App() {
     setInspectingVehicle(null);
     addToast(
       'success',
-      `บันทึกผลการตรวจทะเบียน ${newRecord.plateNumber} สำเร็จ`,
-      newRecord.overallResult === 'pass'
+      `บันทึกผลการตรวจทะเบียน ${sanitizedRecord.plateNumber} สำเร็จ`,
+      sanitizedRecord.overallResult === 'pass'
         ? 'อุปกรณ์ประจำรถครบถ้วน พร้อมใช้งาน'
         : 'พบรายการอุปกรณ์แจ้งซ่อมหรือสูญหาย'
     );
@@ -545,7 +567,7 @@ export default function App() {
     // Sync to Google Sheets & Web App immediately
     pushCurrentStateToSheets(
       { r: updatedRecords, v: updatedVehicles },
-      { action: 'saveInspection', payload: { record: newRecord, updatedMileage } }
+      { action: 'saveInspection', payload: { record: sanitizedRecord, updatedMileage } }
     );
   };
 
@@ -554,9 +576,12 @@ export default function App() {
     const recToDelete = records.find((r) => r.id === id);
     if (!recToDelete) return;
 
+    const displayDate = formatThaiDate(recToDelete.inspectionDate);
+    const displayTime = formatThaiTime(recToDelete.inspectionTime);
+
     if (
       !window.confirm(
-        `ยืนยันการลบประวัติการตรวจเช็ค\nทะเบียน: ${recToDelete.plateNumber} (${recToDelete.province})\nวันที่: ${recToDelete.inspectionDate} เวลา ${recToDelete.inspectionTime} น.\n\nเมื่อลบแล้วจะไม่สามารถกู้คืนได้ ยืนยันหรือไม่?`
+        `ยืนยันการลบประวัติการตรวจเช็ค\nทะเบียน: ${recToDelete.plateNumber} (${recToDelete.province})\nวันที่ตรวจ: ${displayDate} เวลา ${displayTime}\n\nเมื่อลบแล้วจะไม่สามารถกู้คืนได้ ยืนยันหรือไม่?`
       )
     ) {
       return;
@@ -570,7 +595,7 @@ export default function App() {
       setViewingRecord(null);
     }
 
-    addToast('info', 'ลบประวัติการตรวจเช็คสำเร็จ', `ทะเบียน ${recToDelete.plateNumber} (${recToDelete.inspectionDate})`);
+    addToast('info', 'ลบประวัติการตรวจเช็คสำเร็จ', `ทะเบียน ${recToDelete.plateNumber} (${displayDate})`);
 
     // Sync to Google Sheets & Web App immediately
     pushCurrentStateToSheets(
