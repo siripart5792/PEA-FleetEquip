@@ -523,25 +523,22 @@ export default function App() {
     }
   };
 
-  // Inspection Save
+  // Inspection Save (เพิ่มเป็นข้อมูลใหม่เสมอเมื่อมีการตรวจซ้ำ ไม่แก้ไขหรือเขียนทับในอันเดิมที่บันทึกไว้)
   const handleSaveInspection = (newRecord: InspectionRecord, updatedMileage: number) => {
+    const uniqueId = newRecord.id && !records.some((r) => r.id === newRecord.id)
+      ? newRecord.id
+      : `rec-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`;
+
     const sanitizedRecord: InspectionRecord = {
       ...newRecord,
+      id: uniqueId,
       inspectionDate: normalizeToThailandDate(newRecord.inspectionDate),
       inspectionTime: normalizeToThailandTime(newRecord.inspectionTime),
+      createdAt: newRecord.createdAt || new Date().toISOString(),
     };
 
-    const existingIndex = records.findIndex(
-      (r) => r.vehicleId === sanitizedRecord.vehicleId && normalizeToThailandDate(r.inspectionDate) === sanitizedRecord.inspectionDate
-    );
-
-    let updatedRecords: InspectionRecord[];
-    if (existingIndex >= 0) {
-      updatedRecords = [...records];
-      updatedRecords[existingIndex] = sanitizedRecord;
-    } else {
-      updatedRecords = [sanitizedRecord, ...records];
-    }
+    // เพิ่มเป็นรายการใหม่ไว้บนสุดเสมอ เก็บประวัติทุกครั้งที่มีการตรวจซ้ำ
+    const updatedRecords: InspectionRecord[] = [sanitizedRecord, ...records];
 
     setRecords(updatedRecords);
     saveInspections(updatedRecords);
@@ -560,8 +557,8 @@ export default function App() {
       'success',
       `บันทึกผลการตรวจทะเบียน ${sanitizedRecord.plateNumber} สำเร็จ`,
       sanitizedRecord.overallResult === 'pass'
-        ? 'อุปกรณ์ประจำรถครบถ้วน พร้อมใช้งาน'
-        : 'พบรายการอุปกรณ์แจ้งซ่อมหรือสูญหาย'
+        ? 'อุปกรณ์ประจำรถครบถ้วน พร้อมใช้งาน (บันทึกเป็นประวัติใหม่)'
+        : 'พบรายการอุปกรณ์แจ้งซ่อมหรือสูญหาย (บันทึกเป็นประวัติใหม่)'
     );
 
     // Sync to Google Sheets & Web App immediately

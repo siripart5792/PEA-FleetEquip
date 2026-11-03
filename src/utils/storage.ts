@@ -138,7 +138,15 @@ export function resetAllDataToDefault(): void {
 // Helpers for today's status
 export function getTodayInspectionForVehicle(vehicleId: string, records: InspectionRecord[]): InspectionRecord | undefined {
   const today = getTodayDateString();
-  return records.find(r => r.vehicleId === vehicleId && normalizeToThailandDate(r.inspectionDate) === today);
+  const matched = records.filter(r => r.vehicleId === vehicleId && normalizeToThailandDate(r.inspectionDate) === today);
+  if (matched.length === 0) return undefined;
+  if (matched.length === 1) return matched[0];
+  // เมื่อมีการตรวจซ้ำ ให้ดึงรายการตรวจเช็คล่าสุดของวันนี้
+  return matched.sort((a, b) => {
+    const timeA = `${normalizeToThailandDate(a.inspectionDate)} ${normalizeToThailandTime(a.inspectionTime)} ${a.createdAt || ''}`;
+    const timeB = `${normalizeToThailandDate(b.inspectionDate)} ${normalizeToThailandTime(b.inspectionTime)} ${b.createdAt || ''}`;
+    return timeB.localeCompare(timeA);
+  })[0];
 }
 
 export function getTodayStatusCounts(

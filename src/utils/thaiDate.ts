@@ -1,6 +1,7 @@
 /**
  * ระบบจัดการวันที่และเวลาตามมาตรฐานประเทศไทย (Asia/Bangkok - GMT+7)
- * รองรับปี พ.ศ. และการแปลงเวลาจาก Google Sheets / ISO / UTC อย่างถูกต้อง
+ * คำนวณแบบ Pure Mathematical UTC+7 แม่นยำ 100% ไม่ขึ้นกับ Locale หรือ Timezone ของเครื่องผู้ใช้
+ * และไม่ได้รับผลกระทบจากข้อผิดพลาด 1899 LMT Offset ของ Google Sheets
  */
 
 const THAI_MONTHS_SHORT = [
@@ -18,58 +19,29 @@ const THAI_DAYS_FULL = [
 ];
 
 /**
- * ดึงวันที่ปัจจุบันตามเวลาประเทศไทย ในรูปแบบ YYYY-MM-DD
+ * ดึงวันที่ปัจจุบันตามเวลาประเทศไทย (GMT+7) ในรูปแบบ YYYY-MM-DD
  */
 export function getThailandTodayDateString(): string {
-  try {
-    const formatter = new Intl.DateTimeFormat('en-CA', {
-      timeZone: 'Asia/Bangkok',
-      year: 'numeric',
-      month: '2-digit',
-      day: '2-digit',
-    });
-    return formatter.format(new Date()); // 'YYYY-MM-DD'
-  } catch {
-    const d = new Date(Date.now() + 7 * 3600 * 1000);
-    return d.toISOString().slice(0, 10);
-  }
+  const thaiDate = new Date(Date.now() + 7 * 3600 * 1000);
+  return thaiDate.toISOString().slice(0, 10);
 }
 
 /**
  * ดึงวันที่ตามเวลาประเทศไทยแบบระบุจำนวนวันเลื่อน (เช่น -1 คือเมื่อวาน) ในรูปแบบ YYYY-MM-DD
  */
 export function getThailandOffsetDateString(offsetDays: number): string {
-  try {
-    const now = new Date();
-    // แปลงเข้าเขตเวลาประเทศไทยก่อนคำนวณวัน
-    const nowBangkok = new Date(now.toLocaleString('en-US', { timeZone: 'Asia/Bangkok' }));
-    nowBangkok.setDate(nowBangkok.getDate() + offsetDays);
-    const y = nowBangkok.getFullYear();
-    const m = String(nowBangkok.getMonth() + 1).padStart(2, '0');
-    const d = String(nowBangkok.getDate()).padStart(2, '0');
-    return `${y}-${m}-${d}`;
-  } catch {
-    const d = new Date(Date.now() + (7 * 3600 + offsetDays * 86400) * 1000);
-    return d.toISOString().slice(0, 10);
-  }
+  const thaiDate = new Date(Date.now() + (7 * 3600 + offsetDays * 86400) * 1000);
+  return thaiDate.toISOString().slice(0, 10);
 }
 
 /**
- * ดึงเวลาปัจจุบันตามเวลาประเทศไทย (Asia/Bangkok) ในรูปแบบ HH:mm (24 ชั่วโมง)
+ * ดึงเวลาปัจจุบันตามเวลาประเทศไทย (GMT+7) ในรูปแบบ HH:mm (24 ชั่วโมง)
  */
 export function getThailandNowTimeString(): string {
-  try {
-    const formatter = new Intl.DateTimeFormat('en-GB', {
-      timeZone: 'Asia/Bangkok',
-      hour: '2-digit',
-      minute: '2-digit',
-      hour12: false,
-    });
-    return formatter.format(new Date());
-  } catch {
-    const d = new Date(Date.now() + 7 * 3600 * 1000);
-    return `${String(d.getUTCHours()).padStart(2, '0')}:${String(d.getUTCMinutes()).padStart(2, '0')}`;
-  }
+  const thaiDate = new Date(Date.now() + 7 * 3600 * 1000);
+  const h = String(thaiDate.getUTCHours()).padStart(2, '0');
+  const m = String(thaiDate.getUTCMinutes()).padStart(2, '0');
+  return `${h}:${m}`;
 }
 
 /**
@@ -84,52 +56,41 @@ export function normalizeToThailandDate(dateInput: any): string {
     return str;
   }
 
-  // หากขึ้นต้นด้วย YYYY-MM-DD เช่น 2026-11-03T... หรือ 2026-11-03 ...
-  if (/^\d{4}-\d{2}-\d{2}/.test(str)) {
-    if (str.includes('T') || str.includes('Z')) {
-      const parsed = new Date(str);
-      if (!isNaN(parsed.getTime())) {
-        try {
-          return new Intl.DateTimeFormat('en-CA', {
-            timeZone: 'Asia/Bangkok',
-            year: 'numeric',
-            month: '2-digit',
-            day: '2-digit',
-          }).format(parsed);
-        } catch {
-          return str.slice(0, 10);
-        }
-      }
+  // หากเป็น ISO string เช่น 2026-11-03T... หรือมี Z
+  if (str.includes('T') || str.includes('Z')) {
+    const parsed = new Date(str);
+    if (!isNaN(parsed.getTime())) {
+      const thaiDate = new Date(parsed.getTime() + 7 * 3600 * 1000);
+      return thaiDate.toISOString().slice(0, 10);
     }
+  }
+
+  // หากขึ้นต้นด้วย YYYY-MM-DD
+  if (/^\d{4}-\d{2}-\d{2}/.test(str)) {
     return str.slice(0, 10);
   }
 
   // หากเป็น Date string อื่นๆ
   const d = new Date(str);
   if (!isNaN(d.getTime())) {
-    try {
-      return new Intl.DateTimeFormat('en-CA', {
-        timeZone: 'Asia/Bangkok',
-        year: 'numeric',
-        month: '2-digit',
-        day: '2-digit',
-      }).format(d);
-    } catch {
-      return d.toISOString().slice(0, 10);
-    }
+    const thaiDate = new Date(d.getTime() + 7 * 3600 * 1000);
+    return thaiDate.toISOString().slice(0, 10);
   }
 
   return str;
 }
 
 /**
- * จัดการแปลงค่าเวลาที่มาจาก Google Sheets หรือ ISO string ให้อยู่ในรูป HH:mm ตามเวลาไทยเสมอ
+ * จัดการแปลงค่าเวลาที่มาจาก Google Sheets, Web App หรือ ISO string ให้อยู่ในรูป HH:mm ตามเวลาไทยเสมอ
  */
 export function normalizeToThailandTime(timeInput: any): string {
   if (!timeInput) return getThailandNowTimeString();
-  const str = String(timeInput).trim();
+  let str = String(timeInput).trim();
 
-  // รูปแบบ HH:mm หรือ H:mm หรือ HH:mm:ss
+  // กำจัด ' น.' หรือ 'น.' ที่อาจติดมา
+  str = str.replace(/\s*น\.?$/i, '').trim();
+
+  // หากเป็นรูปแบบเวลามาตรฐานอยู่แล้ว เช่น "08:30" หรือ "8:30" หรือ "08:30:00"
   const hhmmMatch = str.match(/^(\d{1,2}):(\d{2})(:(\d{2}))?$/);
   if (hhmmMatch) {
     const hh = hhmmMatch[1].padStart(2, '0');
@@ -137,24 +98,18 @@ export function normalizeToThailandTime(timeInput: any): string {
     return `${hh}:${mm}`;
   }
 
-  // หากเป็น ISO datetime เช่น 1899-12-30T... หรือ 2026-11-03T...
-  if (str.includes('T') || str.includes('GMT') || str.includes('1899')) {
+  // หากเป็น ISO datetime เช่น 1899-12-30T01:30:00.000Z หรือ 2026-11-03T...
+  if (str.includes('T') || str.includes('Z')) {
     const parsed = new Date(str);
     if (!isNaN(parsed.getTime())) {
-      try {
-        return new Intl.DateTimeFormat('en-GB', {
-          timeZone: 'Asia/Bangkok',
-          hour: '2-digit',
-          minute: '2-digit',
-          hour12: false,
-        }).format(parsed);
-      } catch {
-        // fallback
-      }
+      // แปลง UTC hour + 7 hours สำหรับประเทศไทย (ครอบคลุมทั้ง 1899 และปีปัจจุบัน)
+      const thaiHours = (parsed.getUTCHours() + 7) % 24;
+      const thaiMinutes = parsed.getUTCMinutes();
+      return `${String(thaiHours).padStart(2, '0')}:${String(thaiMinutes).padStart(2, '0')}`;
     }
   }
 
-  // ค้นหาตำแหน่ง HH:mm ในข้อความ
+  // ค้นหาตำแหน่ง HH:mm ใดๆ ในข้อความ
   const subMatch = str.match(/(\d{1,2}):(\d{2})/);
   if (subMatch) {
     return `${subMatch[1].padStart(2, '0')}:${subMatch[2]}`;

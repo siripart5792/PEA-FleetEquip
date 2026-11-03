@@ -81,8 +81,8 @@ export const HistoryView: React.FC<HistoryViewProps> = ({
     const dateB = normalizeToThailandDate(b.inspectionDate);
     const timeA = normalizeToThailandTime(a.inspectionTime);
     const timeB = normalizeToThailandTime(b.inspectionTime);
-    const compA = `${dateA}T${timeA}`;
-    const compB = `${dateB}T${timeB}`;
+    const compA = `${dateA}T${timeA}_${a.createdAt || a.id}`;
+    const compB = `${dateB}T${timeB}_${b.createdAt || b.id}`;
     return compB.localeCompare(compA);
   });
 

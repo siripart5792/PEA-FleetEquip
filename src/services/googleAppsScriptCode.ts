@@ -352,16 +352,18 @@ function getInspectionsFromSheet(ss) {
     var rawDate = r[9];
     var formattedDate = "";
     if (rawDate instanceof Date) {
-      formattedDate = Utilities.formatDate(rawDate, "Asia/Bangkok", "yyyy-MM-dd");
+      var y = rawDate.getFullYear();
+      var mo = rawDate.getMonth() + 1;
+      var d = rawDate.getDate();
+      formattedDate = y + "-" + (mo < 10 ? "0" + mo : "" + mo) + "-" + (d < 10 ? "0" + d : "" + d);
     } else if (rawDate) {
       var dStr = String(rawDate).trim();
-      if (dStr.indexOf("T") > 0) {
-        var dObj = new Date(dStr);
-        if (!isNaN(dObj.getTime())) {
-          formattedDate = Utilities.formatDate(dObj, "Asia/Bangkok", "yyyy-MM-dd");
-        } else {
-          formattedDate = dStr.substring(0, 10);
-        }
+      var dm = dStr.match(/^(\d{4})[-/](\d{1,2})[-/](\d{1,2})/);
+      if (dm) {
+        var y = dm[1];
+        var mo = dm[2].length < 2 ? "0" + dm[2] : dm[2];
+        var d = dm[3].length < 2 ? "0" + dm[3] : dm[3];
+        formattedDate = y + "-" + mo + "-" + d;
       } else {
         formattedDate = dStr;
       }
@@ -370,23 +372,18 @@ function getInspectionsFromSheet(ss) {
     var rawTime = r[10];
     var formattedTime = "";
     if (rawTime instanceof Date) {
-      formattedTime = Utilities.formatDate(rawTime, "Asia/Bangkok", "HH:mm");
+      var h = rawTime.getHours();
+      var min = rawTime.getMinutes();
+      formattedTime = (h < 10 ? "0" + h : "" + h) + ":" + (min < 10 ? "0" + min : "" + min);
     } else if (rawTime) {
-      var tStr = String(rawTime).trim();
-      if (tStr.indexOf("T") > 0 || tStr.indexOf("GMT") > 0 || tStr.indexOf("1899") >= 0) {
-        var tObj = new Date(tStr);
-        if (!isNaN(tObj.getTime())) {
-          formattedTime = Utilities.formatDate(tObj, "Asia/Bangkok", "HH:mm");
-        } else {
-          formattedTime = tStr;
-        }
+      var tStr = String(rawTime).trim().replace(/\s*น\.?$/i, "");
+      var tm = tStr.match(/(\d{1,2}):(\d{2})/);
+      if (tm) {
+        var h = parseInt(tm[1], 10);
+        var min = tm[2];
+        formattedTime = (h < 10 ? "0" + h : "" + h) + ":" + min;
       } else {
-        var m = tStr.match(/(\d{1,2}):(\d{2})/);
-        if (m) {
-          formattedTime = (m[1].length < 2 ? "0" + m[1] : m[1]) + ":" + m[2];
-        } else {
-          formattedTime = tStr;
-        }
+        formattedTime = tStr;
       }
     }
 
@@ -415,22 +412,19 @@ function getInspectionsFromSheet(ss) {
 }
 
 /**
- * Save Inspection Record (เพิ่มหรืออัปเดต และปรับเลขไมล์ของรถ)
+ * Save Inspection Record (เพิ่มเป็นรายการใหม่เสมอเมื่อตรวจซ้ำ ไม่เขียนทับรายการเดิม)
  */
 function saveInspectionRecord(ss, record, updatedMileage) {
   var sheet = ss.getSheetByName(SHEET_NAMES.INSPECTIONS);
-  var data = sheet.getDataRange().getValues();
-  var existingRowIndex = -1;
-
-  for (var i = 1; i < data.length; i++) {
-    if (data[i][1] === record.vehicleId && data[i][9] === record.inspectionDate) {
-      existingRowIndex = i + 1; // 1-indexed
-      break;
-    }
+  if (!sheet) {
+    sheet = ss.insertSheet(SHEET_NAMES.INSPECTIONS);
   }
 
+  var dateStr = String(record.inspectionDate || "").trim();
+  var timeStr = String(record.inspectionTime || "").trim();
+
   var rowValues = [
-    record.id,
+    record.id || ("rec-" + Date.now()),
     record.vehicleId,
     record.plateNumber,
     record.province,
@@ -439,8 +433,8 @@ function saveInspectionRecord(ss, record, updatedMileage) {
     record.peaBranchId || "",
     record.peaBranchName || "",
     record.department,
-    record.inspectionDate,
-    record.inspectionTime,
+    dateStr,
+    timeStr,
     record.inspectorName,
     record.inspectorRole,
     record.odometerReading,
@@ -450,11 +444,8 @@ function saveInspectionRecord(ss, record, updatedMileage) {
     record.createdAt || new Date().toISOString()
   ];
 
-  if (existingRowIndex > 0) {
-    sheet.getRange(existingRowIndex, 1, 1, rowValues.length).setValues([rowValues]);
-  } else {
-    sheet.appendRow(rowValues);
-  }
+  // เพิ่มเป็นแถวใหม่ต่อท้ายเสมอ (ไม่เขียนทับอันเดิม)
+  sheet.appendRow(rowValues);
 
   // อัปเดตเลขไมล์ในแผ่น Vehicles
   if (updatedMileage) {

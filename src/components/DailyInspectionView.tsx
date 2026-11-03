@@ -18,6 +18,7 @@ import { Vehicle, MasterEquipment, InspectionRecord, UserRole, PeaBranch } from 
 import { getTodayDateString } from '../data/initialData';
 import { getTodayStatusCounts, getTodayInspectionForVehicle } from '../utils/storage';
 import { formatFullThaiDate } from '../utils/lineMessage';
+import { formatThaiTime, normalizeToThailandDate } from '../utils/thaiDate';
 import { MultiBranchSelect } from './MultiBranchSelect';
 
 interface DailyInspectionViewProps {
@@ -324,6 +325,9 @@ export const DailyInspectionView: React.FC<DailyInspectionViewProps> = ({
             const todayRecord = getTodayInspectionForVehicle(vehicle.id, records);
             const isInspected = !!todayRecord;
             const hasIssue = todayRecord?.overallResult === 'issue';
+            const todayCount = records.filter(
+              (r) => r.vehicleId === vehicle.id && normalizeToThailandDate(r.inspectionDate) === todayStr
+            ).length;
 
             return (
               <div
@@ -394,8 +398,15 @@ export const DailyInspectionView: React.FC<DailyInspectionViewProps> = ({
                   {/* Inspection status metadata if already inspected */}
                   {todayRecord && (
                     <div className="p-2.5 bg-slate-50 rounded-xl border border-slate-200/80 text-[11px] space-y-1">
-                      <div className="flex justify-between text-slate-600">
-                        <span>ตรวจเมื่อ: {todayRecord.inspectionTime} น.</span>
+                      <div className="flex justify-between items-center text-slate-600">
+                        <span className="font-medium text-slate-700">
+                          ตรวจเมื่อ: {formatThaiTime(todayRecord.inspectionTime)}
+                          {todayCount > 1 && (
+                            <span className="ml-1 text-[10px] bg-purple-100 text-purple-800 font-bold px-1.5 py-0.5 rounded-full border border-purple-200">
+                              (ครั้งที่ {todayCount})
+                            </span>
+                          )}
+                        </span>
                         <span className="font-mono tabular-nums">{todayRecord.odometerReading.toLocaleString()} กม.</span>
                       </div>
                       <div className="text-slate-500 truncate">
