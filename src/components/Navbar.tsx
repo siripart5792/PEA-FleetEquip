@@ -1,5 +1,5 @@
 import React from 'react';
-import { ShieldCheck, ShieldAlert, Lock, Unlock, Building2 } from 'lucide-react';
+import { ShieldCheck, ShieldAlert, Lock, Unlock, Building2, QrCode } from 'lucide-react';
 import { UserRole } from '../types/fleet';
 
 interface NavbarProps {
@@ -9,6 +9,7 @@ interface NavbarProps {
   onOpenAdminLogin: () => void;
   onLogoutAdmin: () => void;
   pendingCount: number;
+  onOpenQrModal?: () => void;
 }
 
 export const Navbar: React.FC<NavbarProps> = ({
@@ -18,6 +19,7 @@ export const Navbar: React.FC<NavbarProps> = ({
   onOpenAdminLogin,
   onLogoutAdmin,
   pendingCount,
+  onOpenQrModal,
 }) => {
   return (
     <header className="sticky top-0 z-40 bg-white border-b border-slate-200 shadow-2xs">
@@ -122,8 +124,19 @@ export const Navbar: React.FC<NavbarProps> = ({
             </button>
           </nav>
 
-          {/* Zone 3: 1 Primary Action (Role Indicator / Toggle) */}
+          {/* Zone 3: Actions (QR Code button & Role Toggle) */}
           <div className="flex items-center gap-2.5 shrink-0">
+            {onOpenQrModal && (
+              <button
+                onClick={onOpenQrModal}
+                className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-purple-900 bg-purple-50 hover:bg-purple-100 border border-purple-200 rounded-lg transition-colors cursor-pointer"
+                title="พิมพ์และดู QR Code ติดหน้ารถทุกคัน"
+              >
+                <QrCode className="w-3.5 h-3.5 text-purple-700" />
+                <span>QR หน้ารถ</span>
+              </button>
+            )}
+
             {role === 'admin' ? (
               <div className="flex items-center gap-2">
                 <div className="hidden sm:flex items-center gap-1.5 text-xs font-semibold text-purple-800 bg-purple-50 px-2.5 py-1.5 rounded-lg border border-purple-200">
@@ -209,6 +222,15 @@ export const Navbar: React.FC<NavbarProps> = ({
             <span>สาขา กฟภ.</span>
             {role !== 'admin' && <Lock className="w-3 h-3 text-slate-400" />}
           </button>
+          {onOpenQrModal && (
+            <button
+              onClick={onOpenQrModal}
+              className="px-2.5 py-1.5 rounded-md whitespace-nowrap text-purple-900 bg-purple-50 flex items-center gap-1 cursor-pointer font-semibold border border-purple-200/60"
+            >
+              <QrCode className="w-3 h-3 text-purple-700" />
+              <span>QR หน้ารถ</span>
+            </button>
+          )}
         </div>
       </div>
     </header>

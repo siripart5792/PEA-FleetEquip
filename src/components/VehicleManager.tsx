@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Plus, Edit2, Trash2, Search, Lock, Car, Shield, Wrench, CheckSquare, Square, AlertCircle, X, ShieldCheck, Check, Building2 } from 'lucide-react';
+import { Plus, Edit2, Trash2, Search, Lock, Car, Shield, Wrench, CheckSquare, Square, AlertCircle, X, ShieldCheck, Check, Building2, QrCode } from 'lucide-react';
 import { Vehicle, MasterEquipment, UserRole, VehicleType, EquipmentCategory, PeaBranch } from '../types/fleet';
 import { MultiBranchSelect } from './MultiBranchSelect';
 import { THAI_PROVINCES } from '../data/provinces';
@@ -13,6 +13,7 @@ interface VehicleManagerProps {
   onAddVehicle: (newVehicle: Omit<Vehicle, 'id'>) => void;
   onUpdateVehicle: (id: string, updated: Partial<Vehicle>) => void;
   onDeleteVehicle: (id: string) => void;
+  onOpenQrModal: (vehicle?: Vehicle | null) => void;
 }
 
 const PROVINCES = THAI_PROVINCES;
@@ -26,6 +27,7 @@ export const VehicleManager: React.FC<VehicleManagerProps> = ({
   onAddVehicle,
   onUpdateVehicle,
   onDeleteVehicle,
+  onOpenQrModal,
 }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [filterType, setFilterType] = useState<string>('all');
@@ -213,13 +215,24 @@ export const VehicleManager: React.FC<VehicleManagerProps> = ({
           </p>
         </div>
 
-        <button
-          onClick={openAddModal}
-          className="px-4 py-2 text-xs sm:text-sm font-semibold text-white bg-purple-700 hover:bg-purple-800 rounded-xl transition-colors shadow-xs flex items-center justify-center gap-2 cursor-pointer self-start sm:self-auto"
-        >
-          <Plus className="w-4 h-4" />
-          <span>เพิ่มรถยนต์เข้าสู่ระบบ</span>
-        </button>
+        <div className="flex items-center gap-2 flex-wrap self-start sm:self-auto">
+          <button
+            onClick={() => onOpenQrModal()}
+            className="px-3.5 py-2 text-xs sm:text-sm font-semibold text-purple-900 bg-purple-50 hover:bg-purple-100 border border-purple-200 rounded-xl transition-colors shadow-2xs flex items-center justify-center gap-1.5 cursor-pointer"
+            title="พิมพ์และดู QR Code ติดหน้ารถทุกคัน"
+          >
+            <QrCode className="w-4 h-4 text-purple-700" />
+            <span>QR Code ติดหน้ารถ (ทั้งหมด)</span>
+          </button>
+
+          <button
+            onClick={openAddModal}
+            className="px-4 py-2 text-xs sm:text-sm font-semibold text-white bg-purple-700 hover:bg-purple-800 rounded-xl transition-colors shadow-xs flex items-center justify-center gap-2 cursor-pointer"
+          >
+            <Plus className="w-4 h-4" />
+            <span>เพิ่มรถยนต์เข้าสู่ระบบ</span>
+          </button>
+        </div>
       </div>
 
       {/* Filter and Search Bar */}
@@ -342,6 +355,13 @@ export const VehicleManager: React.FC<VehicleManagerProps> = ({
 
                     <td className="py-3 px-4 text-right">
                       <div className="flex items-center justify-end gap-1">
+                        <button
+                          onClick={() => onOpenQrModal(veh)}
+                          className="p-1.5 text-purple-700 hover:text-purple-900 hover:bg-purple-50 rounded-lg transition-colors cursor-pointer"
+                          title="ดูและพิมพ์ QR Code ติดหน้ารถคันนี้"
+                        >
+                          <QrCode className="w-4 h-4" />
+                        </button>
                         <button
                           onClick={() => openEditModal(veh)}
                           className="p-1.5 text-slate-500 hover:text-purple-700 hover:bg-purple-50 rounded-lg transition-colors cursor-pointer"

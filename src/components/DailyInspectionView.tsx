@@ -12,7 +12,8 @@ import {
   ChevronRight,
   Eye,
   Check,
-  Building2
+  Building2,
+  QrCode
 } from 'lucide-react';
 import { Vehicle, MasterEquipment, InspectionRecord, UserRole, PeaBranch } from '../types/fleet';
 import { getTodayDateString } from '../data/initialData';
@@ -32,6 +33,7 @@ interface DailyInspectionViewProps {
   onOpenLineModal: () => void;
   onQuickCopyLine: () => void;
   quickCopied: boolean;
+  onOpenQrModal: (vehicle?: Vehicle | null) => void;
 }
 
 export const DailyInspectionView: React.FC<DailyInspectionViewProps> = ({
@@ -45,6 +47,7 @@ export const DailyInspectionView: React.FC<DailyInspectionViewProps> = ({
   onOpenLineModal,
   onQuickCopyLine,
   quickCopied,
+  onOpenQrModal,
 }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<'all' | 'pending' | 'inspected' | 'issues'>('all');
@@ -132,6 +135,15 @@ export const DailyInspectionView: React.FC<DailyInspectionViewProps> = ({
             className="px-3.5 py-2.5 text-xs font-semibold text-slate-700 bg-white hover:bg-slate-50 border border-slate-300 rounded-xl transition-colors shadow-2xs cursor-pointer"
           >
             ดูตัวอย่าง & ตั้งค่า LINE
+          </button>
+
+          <button
+            onClick={() => onOpenQrModal()}
+            className="px-3.5 py-2.5 text-xs font-semibold text-purple-900 bg-purple-50 hover:bg-purple-100 border border-purple-200 rounded-xl transition-colors shadow-2xs flex items-center gap-1.5 cursor-pointer"
+            title="พิมพ์หรือดู QR Code ติดหน้ารถสำหรับให้พนักงานสแกนตรวจเช็ค"
+          >
+            <QrCode className="w-4 h-4 text-purple-700" />
+            <span>QR Code ติดหน้ารถ</span>
           </button>
         </div>
       </div>
@@ -422,32 +434,52 @@ export const DailyInspectionView: React.FC<DailyInspectionViewProps> = ({
                 </div>
 
                 {/* Card Action Footer */}
-                <div className="p-4 bg-slate-50/60 border-t border-slate-100 flex items-center justify-between gap-2">
+                <div className="p-3.5 bg-slate-50/60 border-t border-slate-100 flex items-center justify-between gap-2">
                   {todayRecord ? (
-                    <>
-                      <button
-                        onClick={() => onViewRecord(todayRecord)}
-                        className="px-3 py-1.5 text-xs font-semibold text-slate-700 hover:text-slate-900 bg-white hover:bg-slate-100 border border-slate-200 rounded-lg transition-colors flex items-center gap-1.5 cursor-pointer"
-                      >
-                        <Eye className="w-3.5 h-3.5 text-slate-500" />
-                        <span>ดูผลการตรวจ</span>
-                      </button>
+                    <div className="flex items-center justify-between w-full gap-2">
+                      <div className="flex items-center gap-1.5">
+                        <button
+                          onClick={() => onViewRecord(todayRecord)}
+                          className="px-2.5 py-1.5 text-xs font-semibold text-slate-700 hover:text-slate-900 bg-white hover:bg-slate-100 border border-slate-200 rounded-lg transition-colors flex items-center gap-1 cursor-pointer"
+                        >
+                          <Eye className="w-3.5 h-3.5 text-slate-500" />
+                          <span>ดูผล</span>
+                        </button>
+
+                        <button
+                          onClick={() => onStartInspection(vehicle)}
+                          className="px-2.5 py-1.5 text-xs font-semibold text-purple-700 hover:text-purple-800 bg-purple-50 hover:bg-purple-100 border border-purple-200 rounded-lg transition-colors cursor-pointer"
+                        >
+                          ตรวจซ้ำ
+                        </button>
+                      </div>
 
                       <button
-                        onClick={() => onStartInspection(vehicle)}
-                        className="px-3 py-1.5 text-xs font-semibold text-purple-700 hover:text-purple-800 bg-purple-50 hover:bg-purple-100 border border-purple-200 rounded-lg transition-colors cursor-pointer"
+                        onClick={() => onOpenQrModal(vehicle)}
+                        className="p-1.5 px-2 text-purple-700 hover:text-purple-900 bg-white hover:bg-purple-50 border border-purple-200 rounded-lg transition-colors flex items-center gap-1 text-xs font-semibold cursor-pointer"
+                        title="พิมพ์หรือดู QR Code ติดหน้ารถคันนี้"
                       >
-                        ตรวจซ้ำ / อัปเดต
+                        <QrCode className="w-3.5 h-3.5 text-purple-700" />
+                        <span className="hidden sm:inline">QR หน้ารถ</span>
                       </button>
-                    </>
+                    </div>
                   ) : (
-                    <button
-                      onClick={() => onStartInspection(vehicle)}
-                      className="w-full py-2 px-3 text-xs font-bold text-white bg-purple-700 hover:bg-purple-800 rounded-xl transition-all shadow-xs flex items-center justify-center gap-1.5 cursor-pointer"
-                    >
-                      <span>เริ่มตรวจอุปกรณ์ประจำรถ</span>
-                      <ChevronRight className="w-4 h-4" />
-                    </button>
+                    <div className="flex items-center gap-2 w-full">
+                      <button
+                        onClick={() => onStartInspection(vehicle)}
+                        className="flex-1 py-2 px-3 text-xs font-bold text-white bg-purple-700 hover:bg-purple-800 rounded-xl transition-all shadow-xs flex items-center justify-center gap-1.5 cursor-pointer"
+                      >
+                        <span>เริ่มตรวจอุปกรณ์ประจำรถ</span>
+                        <ChevronRight className="w-4 h-4" />
+                      </button>
+                      <button
+                        onClick={() => onOpenQrModal(vehicle)}
+                        className="p-2 text-purple-700 hover:text-purple-900 bg-purple-50 hover:bg-purple-100 border border-purple-200 rounded-xl transition-colors cursor-pointer"
+                        title="พิมพ์หรือดู QR Code ติดหน้ารถคันนี้"
+                      >
+                        <QrCode className="w-4 h-4" />
+                      </button>
+                    </div>
                   )}
                 </div>
               </div>

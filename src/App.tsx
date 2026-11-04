@@ -15,6 +15,7 @@ import { DailyInspectionModal } from './components/DailyInspectionModal';
 import { InspectionDetailModal } from './components/InspectionDetailModal';
 import { LineReminderModal } from './components/LineReminderModal';
 import { AdminLoginModal } from './components/AdminLoginModal';
+import { VehicleQrModal } from './components/VehicleQrModal';
 import { ToastContainer, ToastMessage } from './components/Toast';
 
 import {
@@ -99,6 +100,13 @@ export default function App() {
   const [viewingRecord, setViewingRecord] = useState<InspectionRecord | null>(null);
   const [lineModalOpen, setLineModalOpen] = useState(false);
   const [adminLoginOpen, setAdminLoginOpen] = useState(false);
+  const [qrModalOpen, setQrModalOpen] = useState(false);
+  const [qrSelectedVehicle, setQrSelectedVehicle] = useState<Vehicle | null>(null);
+
+  const handleOpenQrModal = useCallback((vehicle?: Vehicle | null) => {
+    setQrSelectedVehicle(vehicle || null);
+    setQrModalOpen(true);
+  }, []);
 
   // Quick copy feedback
   const [quickCopied, setQuickCopied] = useState(false);
@@ -117,6 +125,37 @@ export default function App() {
   const removeToast = (id: string) => {
     setToasts((prev) => prev.filter((t) => t.id !== id));
   };
+
+  // Deep-link check for QR code scanning (e.g. ?action=inspect&vehicleId=... or ?plate=...)
+  useEffect(() => {
+    if (vehicles.length === 0) return;
+    try {
+      const params = new URLSearchParams(window.location.search);
+      const targetVehicleId = params.get('vehicleId') || params.get('inspect');
+      const targetPlate = params.get('plate');
+
+      if (targetVehicleId || targetPlate) {
+        const matched = vehicles.find(
+          (v) => (targetVehicleId && v.id === targetVehicleId) || (targetPlate && v.plateNumber === targetPlate)
+        );
+
+        if (matched) {
+          setCurrentTab('daily');
+          setInspectingVehicle(matched);
+          addToast(
+            'info',
+            `เปิดหน้าตรวจเช็ครถ: ${matched.plateNumber} (${matched.province})`,
+            'เข้าสู่แบบฟอร์มตรวจอุปกรณ์ประจำรถคันนี้ทันทีจากการสแกน QR Code'
+          );
+          // Clean search query from URL bar so refreshes don't re-trigger
+          const cleanUrl = window.location.pathname + window.location.hash;
+          window.history.replaceState({}, document.title, cleanUrl);
+        }
+      }
+    } catch (e) {
+      console.error('Error handling QR URL parameter', e);
+    }
+  }, [vehicles, addToast]);
 
   // Status counts
   const { pendingCount } = getTodayStatusCounts(vehicles, records);
@@ -847,6 +886,7 @@ export default function App() {
           }
         }}
         pendingCount={pendingCount}
+        onOpenQrModal={() => handleOpenQrModal()}
       />
 
       {/* Main View Area */}
@@ -863,6 +903,7 @@ export default function App() {
             onOpenLineModal={() => setLineModalOpen(true)}
             onQuickCopyLine={handleQuickCopyLine}
             quickCopied={quickCopied}
+            onOpenQrModal={handleOpenQrModal}
           />
         )}
 
@@ -887,6 +928,7 @@ export default function App() {
             onAddVehicle={handleAddVehicle}
             onUpdateVehicle={handleUpdateVehicle}
             onDeleteVehicle={handleDeleteVehicle}
+            onOpenQrModal={handleOpenQrModal}
           />
         )}
 
@@ -1009,6 +1051,22 @@ export default function App() {
           } else {
             addToast('info', 'ยกเลิกการใช้ Web App URL แล้ว');
           }
+        }}
+      />
+
+      {/* Vehicle QR Code Windshield Sticker Modal */}
+      <VehicleQrModal
+        isOpen={qrModalOpen}
+        onClose={() => {
+          setQrModalOpen(false);
+          setQrSelectedVehicle(null);
+        }}
+        vehicles={vehicles}
+        branches={branches}
+        initialVehicle={qrSelectedVehicle}
+        onSelectVehicleForInspection={(veh) => {
+          setCurrentTab('daily');
+          setInspectingVehicle(veh);
         }}
       />
 

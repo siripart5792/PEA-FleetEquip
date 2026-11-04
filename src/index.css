@@ -9,3 +9,14 @@
     -webkit-font-smoothing: antialiased;
   }
 }
+
+@media print {
+  header, footer, nav {
+    display: none !important;
+  }
+  body {
+    background-color: #ffffff !important;
+    color: #000000 !important;
+  }
+}
+
