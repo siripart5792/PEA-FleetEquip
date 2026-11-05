@@ -915,6 +915,7 @@ export default function App() {
             role={role}
             onSelectRecord={(rec) => setViewingRecord(rec)}
             onDeleteRecord={handleDeleteInspection}
+            onStartInspection={(veh) => setInspectingVehicle(veh)}
           />
         )}
 
